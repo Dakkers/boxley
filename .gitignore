@@ -1,0 +1,7 @@
+# built and executable version
+*.exe
+*.build
+
+# shhhhhhhhhhh
+secrets.txt
+
