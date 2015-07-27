@@ -47,13 +47,13 @@ def Add():
     file's Dropbox path will be the user-specified default directory plus the
     home-relative path to the file, e.g.
 
-        ~/Documents/stuff/hi.txt  -->  Dropbox/Boxley/Documents/stuff/hi.txt
+        ~/Documents/stuff/hi.txt  -->  /Boxley/Documents/stuff/hi.txt
 
     OPTIONS
 
     -d
-        The name of the directory (inside Dropbox/Boxley) to put this file. Can
-        be used in conjunction with -root.
+        The name of the directory (inside /Boxley) to put this file. Can be 
+        used in conjunction with -root.
 
     -root
         Adds the file to the root of the Dropbox instead of the default DB
@@ -137,7 +137,48 @@ def Add():
         SYNCFILES_CONTENT.write(json.dumps(syncfiles)+'\n')
 
 
+def PushAll():
+    """
+    Pushes all files to Dropbox.
+
+    OPTIONS
+
+    -v
+        Verbose output; displays a message for every file pushed.
+    """
+
+    verbose = False
+
+    if len(sys.argv) > 3:
+        raise Exception("\n\tToo many options.")
+
+    if len(sys.argv) == 3:
+        if sys.argv[2] != '-v':
+            raise Exception("\n\tInvalid option. Available options are: -v")
+        verbose = True
+
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
+        ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
+
+    client = dropbox.client.DropboxClient(ACCESS_TOKEN)
+    
+    with open(os.path.join(boxley_dir, "files.conf")) as SYNCFILES_CONTENT:
+        syncfiles = json.loads(SYNCFILES_CONTENT.read())
+        for local_path in syncfiles:
+            db_path = syncfiles[local_path]
+
+            with open(local_path, 'rb') as f:
+                client.put_file(db_path, f)
+                if verbose:
+                    print "Uploaded", local_path
+
+    print "All files synced successfully."
+
+
 if cmd == "init":
     Init()
 elif cmd == "add":
     Add()
+elif cmd == "pushall":
+    PushAll()
