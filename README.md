@@ -2,7 +2,7 @@
 Boxley is a CLI for syncing specific files with Dropbox in any directory.
 
 ## About
-Boxley allows you to add any file to a list of files (`files.conf`) that can then be synchronized with Dropbox. When adding a file to this list, the directory in Dropbox that the file will be synced to can be specified.
+Boxley allows you to add any file (referred to as a `path`) to a list of files (`paths.conf`) that can then be synchronized with Dropbox. When adding a file to this list, the directory in Dropbox that the file will be synced to can be specified. Files can also be organized into "groups", so that you don't have to push individual files or all of your files at once.
 
 ## Installation
 All of these commands take place in a terminal.
@@ -20,7 +20,7 @@ Enter the authorization code here:
 Now you can start using Boxley! Great job.
 
 ## Settings
-The default settings are as follows:
+The default settings are as follows (found in `~/.boxley/boxley.conf`):
 
 ```
 access_token=r3aHBkL-OloAAAAAAAABvL6bch_122KBkzu3OI8kKanIyS3UN0AxKdRPUfQfWNgU
@@ -60,11 +60,11 @@ I like examples, so I'll put a lot here. My notation for displaying the mapping 
 These commands assume the default settings are used. See above.
 
 ### `add [options] [files]`
-Adds files to `files.conf`, which can then be pushed. The Dropbox file path defaults to the local file path. Multiple files can be specified, and *should* work with any option.
+Adds paths to `paths.conf`, which can then be pushed. If a group is specified (see `-g` below), then the path is added to a group file instead. The Dropbox file path defaults to the local file path. Multiple files can be specified, and *should* work with any option.
 
 Example:
 
-```
+```bash
 boxley add file.txt
 # /home/you/some/path/file.txt  -->  /Boxley/some/path/file.txt
 
@@ -82,12 +82,21 @@ boxley add file.txt
 
 #### Options
 
+##### `-g`
+Adds the path(s) to the group file specified by its name. Group filenames are of the form `group-GROUPNAME.conf`.
+
+```
+boxley add -g mygroup file.txt
+# /home/you/some/path/file.txt  -->  /Boxley/some/path/file.txt
+# this is found in  ~/.boxley/group-mygroup.conf
+```
+
 ##### `-root`
 Ignores the default directory in `boxley.conf`. Can be used in conjunction with `-d`.
 
 ```
 boxley add -root file.txt
-# /home/you/some/path/file.txt  -->  /Boxley/some/path/file.txt
+# /home/you/some/path/file.txt  -->  /some/path/file.txt
 ```
 
 If `RELATIVE_TO_HOME` is `false`, then:
@@ -108,6 +117,13 @@ boxley add -d MyDirectory file.txt
 
 boxley add -root -d MyDirectory file.txt
 # /home/you/some/path/file.txt  -->  /MyDirectory/file.txt
+```
+
+### `mkgroup [groupname]`
+Creates a group file.
+
+```
+boxley mkgroup awesomestuff     # creates ~/.boxley/group-awesomestuff.conf
 ```
 
 ### `pushall [options]`
