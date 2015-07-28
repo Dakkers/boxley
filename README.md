@@ -2,7 +2,7 @@
 Boxley is a CLI for syncing specific files with Dropbox in any directory.
 
 ## About
-Boxley allows you to add any file (referred to as a `path`) to a list of files (`paths.conf`) that can then be synchronized with Dropbox. When adding a file to this list, the directory in Dropbox that the file will be synced to can be specified. Files can also be organized into "groups", so that you don't have to push individual files or all of your files at once.
+Boxley allows you to add any file to a list of files (`paths.conf`) that can then be synchronized with Dropbox. When adding a file to this list, the directory in Dropbox that the file will be synced to can be specified. Files can also be organized into "groups", so that you don't have to push individual files or all of your files at once.
 
 ## Installation
 All of these commands take place in a terminal.
@@ -62,7 +62,7 @@ I like examples, so I'll put a lot here. My notation for displaying the mapping 
 These commands assume the default settings are used. See above.
 
 ### `add [options] [files]`
-Adds paths to `paths.conf`, which can then be pushed. If a group is specified (see `-g` below), then the path is added to a group file instead. The Dropbox file path defaults to the local file path. Multiple files can be specified, and *should* work with any option.
+Adds file paths to `paths.conf`, which can then be pushed. If a group is specified (see `-g` below), then the path is added to a group file instead. The Dropbox file path defaults to the local file path. Multiple files can be specified, and *should* work with any option.
 
 Example:
 
@@ -84,7 +84,7 @@ boxley add file.txt
 
 #### Options
 ##### `-g`
-Adds the path(s) to the group file specified by its name. Group filenames are of the form `group-GROUPNAME.conf`.
+Adds the file path(s) to the group file specified by its name. Group filenames are of the form `group-GROUPNAME.conf`.
 
 ```bash
 boxley add -g mygroup file.txt
@@ -108,7 +108,7 @@ boxley add -root file.txt
 ```
 
 ##### `-d`
-Specifies which directory the file will be synced to. Can be used in conjunction with `-root`.
+Specifies which Dropbox directory the file will be synced to. Can be used in conjunction with `-root`.
 
 The following example will hold regardless of `RELATIVE_TO_HOME`'s value.
 
@@ -125,6 +125,41 @@ Creates a group file.
 
 ```bash
 boxley mkgroup awesomestuff     # creates ~/.boxley/group-awesomestuff.conf
+```
+
+### `push [options] [path(s)]`
+Pushes specified files to Dropbox. If a file belongs to a group, its group name MUST be specified, unless it belongs to both `paths.conf` and a group, in which case, either one can be specified. Files of different groups CANNOT be added at the same time; only files of one group can be.
+
+```bash
+boxley push myfile.txt
+boxley push file_A.txt file_B.txt
+
+boxley push -d myfile.txt    # duplicate file instead of overwriting
+
+# if file_C.txt and file_D.txt are in the group "hello"
+boxley push -g hello file_C.txt file_D.txt
+```
+
+#### Options
+##### `-d`
+Duplicate; if the file being pushed already exists on Dropbox, then this file will have a duplicate name. Equivalent to having the `paths.conf` overwrite setting set to false. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+
+##### `-g`
+Group that the file(s) belong to. Multiple groups cannot be specified. If a file belongs to a group, its group must be specified.
+
+##### `-o`
+Overwrite; if the file being pushed already exists on Dropbox, then this file will overwrite the existing version. Equivalent to having the `paths.conf` overwrite setting set to true. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+
+##### `-v`
+Verbose output; prints a message for every file that is pushed.
+
+### `pushgroup [options] [groupname(s)]`
+Pushes specified group(s) to Dropbox.
+
+```bash
+boxley pushgroup awesomestuff     # a single group
+
+boxley pushgroup -d sprites models    # push multiple groups, and duplicate files instead of overwriting
 ```
 
 ### `pushall [options]`
