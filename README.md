@@ -26,6 +26,7 @@ The default settings are as follows (found in `~/.boxley/boxley.conf`):
 access_token=r3aHBkL-OloAAAAAAAABvL6bch_122KBkzu3OI8kKanIyS3UN0AxKdRPUfQfWNgU
 db_dir=/Boxley/
 relative_to_home=true
+overwrite=true
 autopush=false
 autopush_time=---
 push_on_startup=false
@@ -37,6 +38,7 @@ pull_on_startup=false
 - **access_token**: A user-specific Dropbox access token. Don't alter this!
 - **db_dir**: The default directory to sync with. Make sure to have a trailing `/` at the end, regardless of your OS.
 - **relative_to_home**: Tells Boxley to include the path to your home directory in the Dropbox file paths.
+- **overwrite**: Tells Dropbox to overwrite the files that are pushed, instead of duplicating them.
 
 Other settings not yet implemented. Sorry :(
 
@@ -44,7 +46,7 @@ Other settings not yet implemented. Sorry :(
 ## Usage
 A simple example:
 
-```
+```bash
 echo Hellogoodbye > my_file.txt
 boxley add my_file.txt
 boxley push my_file.txt
@@ -75,17 +77,16 @@ boxley add fileA.txt fileB.txt
 
 If `RELATIVE_TO_HOME` is `false`, then:
 
-```
+```bash
 boxley add file.txt
 # /home/you/some/path/file.txt  -->  /Boxley/home/you/some/path/file.txt
 ```
 
 #### Options
-
 ##### `-g`
 Adds the path(s) to the group file specified by its name. Group filenames are of the form `group-GROUPNAME.conf`.
 
-```
+```bash
 boxley add -g mygroup file.txt
 # /home/you/some/path/file.txt  -->  /Boxley/some/path/file.txt
 # this is found in  ~/.boxley/group-mygroup.conf
@@ -94,14 +95,14 @@ boxley add -g mygroup file.txt
 ##### `-root`
 Ignores the default directory in `boxley.conf`. Can be used in conjunction with `-d`.
 
-```
+```bash
 boxley add -root file.txt
 # /home/you/some/path/file.txt  -->  /some/path/file.txt
 ```
 
 If `RELATIVE_TO_HOME` is `false`, then:
 
-```
+```bash
 boxley add -root file.txt
 # /home/you/some/path/file.txt  -->  /home/you/some/path/file.txt
 ```
@@ -111,7 +112,7 @@ Specifies which directory the file will be synced to. Can be used in conjunction
 
 The following example will hold regardless of `RELATIVE_TO_HOME`'s value.
 
-```
+```bash
 boxley add -d MyDirectory file.txt
 # /home/you/some/path/file.txt  -->  /Boxley/MyDirectory/file.txt
 
@@ -122,25 +123,49 @@ boxley add -root -d MyDirectory file.txt
 ### `mkgroup [groupname]`
 Creates a group file.
 
-```
+```bash
 boxley mkgroup awesomestuff     # creates ~/.boxley/group-awesomestuff.conf
 ```
 
 ### `pushall [options]`
-Pushes all files in `files.conf` to Dropbox.
+Pushes ALL paths (those specified in `paths.conf` and all `group-*.conf` files) to Dropbox.
 
-```
+```bash
 boxley pushall
 ```
 
 #### Options
+##### `-d`
+Duplicate; if the file being pushed already exists on Dropbox, then this file will have a duplicate name. Equivalent to having the `paths.conf` overwrite setting set to false. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+
+##### `-o`
+Overwrite; if the file being pushed already exists on Dropbox, then this file will overwrite the existing version. Equivalent to having the `paths.conf` overwrite setting set to true. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+
+##### `-v`
+Verbose output; prints a message for every file that is pushed.
+
+### `pushgroup [options] [groupname(s)]`
+Pushes specified group(s) to Dropbox.
+
+```bash
+boxley pushgroup awesomestuff     # a single group
+
+boxley pushgroup -d sprites models    # push multiple groups, and duplicate files instead of overwriting
+```
+
+#### Options
+##### `-d`
+Duplicate; if the group files being pushed already exist on Dropbox, then these files will have duplicate names. Equivalent to having the `paths.conf` overwrite setting set to false. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+
+##### `-o`
+Overwrite; if the group files being pushed already exist on Dropbox, then these files will overwrite the existing versions. Equivalent to having the `paths.conf` overwrite setting set to true. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+
 ##### `-v`
 Verbose output; prints a message for every file that is pushed.
 
 ## TODO
 Implement:
 
-- push
 - pull
 - pullall
 - del
@@ -156,7 +181,7 @@ Bugs:
 Possible features:
 
 - warnings for pushing to already existing files
-- allow a local file to have multiple Dropbox links
+- allow a local file to have multiple Dropbox links (this is possible in groups)
 - `.boxleyignore` -- file to specify what files to ignore when adding folders
 
 Code cleanup:

@@ -30,6 +30,79 @@ def _Add_Paths_To_File(file_path, new_paths):
         PATHSFILE_CONTENT.write(json.dumps(paths)+"\n")
 
 
+def _Get_Push_Settings():
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
+        ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
+        CONFIG.readline()
+        CONFIG.readline()
+        OVERWRITE = CONFIG.readline().strip().split("=")[1]
+
+    if OVERWRITE == "true":
+        overwrite = True
+    else:
+        overwrite = False
+    return boxley_dir, ACCESS_TOKEN, overwrite
+
+
+def _Push_Collection(paths, client, overwrite, verbose, is_group, groupname=""):
+    """
+    Pushes a 'collection' of files; only applies to `pushall` and `pushgroup`.
+    """
+    # applies to "pushall" and "pushgroup"
+    if verbose:
+        _Push_Collection_Verbosely(paths, overwrite, client, is_group, groupname)
+    else:
+        _Push_Collection_Quietly(paths, overwrite, client)
+
+
+def _Push_Collection_Quietly(paths, client, overwrite):
+    """
+    Pushes multiple files quietly.
+    """
+    push_failed = False
+
+    for local_path in paths:
+        if local_path not in paths:
+            print "File not found: %s" % local_path
+            push_failed = True
+            continue
+
+        db_path = paths[local_path]
+
+        with open(local_path, "rb") as f:
+            client.put_file(db_path, f, overwrite=overwrite)
+
+    return push_failed
+
+
+def _Push_Collection_Verbosely(paths, overwrite, client, is_group, groupname=""):
+    """
+    Pushes multiple files VERY LOUDLY
+    """
+    push_failed = False
+
+    if is_group:
+        print "Uploading is_group \"%s\" ..." % groupname
+
+    for local_path in paths:
+        if local_path not in paths:
+            print "File not found: %s" % local_path
+            push_failed = True
+            continue
+
+        db_path = paths[local_path]
+
+        with open(local_path, "rb") as f:
+            client.put_file(db_path, f, overwrite=overwrite)
+            if is_group:
+                print "\tuploaded", local_path
+            else:
+                print "Uploaded", local_path
+
+    return push_failed
+
+
 def Init():
     SECRETS = open("./secrets.txt")
     app_key = SECRETS.readline().strip()
@@ -58,6 +131,7 @@ def Init():
         CONFIG.write("access_token=%s\n" % access_token)
         CONFIG.write("db_path=/Boxley\n")
         CONFIG.write("relative_to_home=true\n")
+        CONFIG.write("overwrite=true\n")
         CONFIG.write("autopush=false\nautopush_time=---\npush_on_startup=false\n")
         CONFIG.write("autopull=false\nautopull_time=---\npull_on_startup=false\n")
 
@@ -175,7 +249,7 @@ def Add():
         groupfile_path = os.path.join(boxley_dir, "group-%s.conf" % groupname)
 
         if not os.path.isfile(groupfile_path):
-            print "Group %s does not exist. Creating it..."
+            print "Group %s does not exist. Creating it..." % groupname
             _Make_Group_File(groupfile_path)
 
         _Add_Paths_To_File(groupfile_path, new_paths)
@@ -197,30 +271,233 @@ def Make_Group():
     _Make_Group_File(groupfile_path)
 
 
+def Push():
+    """
+    Pushes given files to Dropbox.
+
+    OPTIONS
+
+    -d
+        Duplicate; if the file being pushed already exists on Dropbox, then
+        this file will have a duplicate name. Equivalent to having the
+        `paths.conf` overwrite setting set to false. If both -d and -o flags
+        are entered, the one entered last will take priority, regardless of
+        the `paths.conf` setting.
+
+    -o
+        Overwrite; if the file being pushed already exists on Dropbox, then
+        this file will overwrite the existing version. Equivalent to having the
+        `paths.conf` overwrite setting set to true. If both -d and -o flags are
+        entered, the one entered last will take priority, regardless of the 
+        `paths.conf` setting.
+
+    -v
+        Verbose output; displays a message for every file pushed.
+    """
+
+    boxley_dir, ACCESS_TOKEN, overwrite = _Get_Push_Settings()
+    client = dropbox.client.DropboxClient(ACCESS_TOKEN)
+    paths_to_push = []
+    verbose = False
+    paths_in_group = False
+
+    i, N = 2, len(sys.argv)
+    while i < N:
+        param = sys.argv[i]
+
+        if param == "-d":
+            overwrite = False
+
+        elif param == "-g":
+            paths_in_group = True
+            groupname = sys.argv[i+1]
+            i += 1
+
+        elif param == "-o":
+            overwrite = True
+        
+        elif param == "-v":
+            verbose = True
+
+        else:
+            paths_to_push.append(os.path.abspath(sys.argv[i]))
+            
+        i += 1
+
+
+    if paths_in_group:
+        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        if not os.path.isfile(paths_filename):
+            print "Group \"%s\" does not exist. Exiting..." % groupname
+            return
+    else:
+        paths_filename = os.path.join(boxley_dir, "paths.conf")
+
+    paths = {}
+    with open(paths_filename) as PATHSFILE_CONTENT:
+        paths = json.loads(PATHSFILE_CONTENT.read())
+
+    push_failed = False
+
+    # this code is fuckin' ugly & redundant, I'll clean it up another day.
+    if verbose:
+        if paths_in_group:
+            print "Uploading files to group %s ..." % groupname
+
+        for local_path in paths_to_push:
+            if local_path not in paths:
+                print "File not found: %s" % local_path
+                push_failed = True
+                continue
+
+            db_path = paths[local_path]
+            with open(local_path, "rb") as f:
+                client.put_file(db_path, f, overwrite=overwrite)
+                if paths_in_group:
+                    print "\tuploaded", local_path
+                else:
+                    print "Uploaded", local_path
+
+    else:
+        for local_path in paths_to_push:
+            if local_path not in paths:
+                print "File not found: %s" % local_path
+                push_failed = True
+                continue
+
+            db_path = paths[local_path]
+            with open(local_path, "rb") as f:
+                client.put_file(db_path, f, overwrite=overwrite)
+
+    if push_failed:
+        print "Some files failed to push."
+    else:
+        print "Pushed successfully."
+
+
+def Push_Group():
+    """
+    Pushes a group to Dropbox.
+
+    OPTIONS
+
+    -d
+        Duplicate; if the group files being pushed already exists on Dropbox,
+        then the all_files will have a duplicate name. Equivalent to having the
+        `paths.conf` overwrite setting set to false. If both -d and -o flags
+        are entered, the one entered last will take priority, regardless of
+        the `paths.conf` setting.
+
+    -o
+        Overwrite; if the group being pushed already exists on Dropbox, then
+        this file will overwrite the existing version. Equivalent to having the
+        `paths.conf` overwrite setting set to true. If both -d and -o flags are
+        entered, the one entered last will take priority, regardless of the 
+        `paths.conf` setting.
+
+    -v
+        Verbose output; displays a message for every file pushed.
+    """
+
+    boxley_dir, ACCESS_TOKEN, overwrite = _Get_Push_Settings()
+    client = dropbox.client.DropboxClient(ACCESS_TOKEN)
+    groupnames = []
+    verbose = False
+
+    i, N = 2, len(sys.argv)
+    while i < N:
+        param = sys.argv[i]
+
+        if param == "-d":
+            overwrite = False
+
+        elif param == "-o":
+            overwrite = True
+        
+        elif param == "-v":
+            verbose = True
+
+        else:
+            groupnames.append(param)
+            
+        i += 1
+
+    if len(groupnames) == 0:
+        print "Group name(s) not specified. Exiting..."
+        return
+
+    for groupname in groupnames:
+
+        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        if not os.path.isfile(paths_filename):
+            print "Group \"%s\" does not exist. Skipping..." % groupname
+            continue
+
+        paths = {}
+        with open(paths_filename) as PATHSFILE_CONTENT:
+            paths = json.loads(PATHSFILE_CONTENT.read())
+
+        push_failed = False
+
+        # push all ze files
+        with open(os.path.join(boxley_dir, paths_filename)) as PATHSFILE_CONTENT:
+            paths = json.loads(PATHSFILE_CONTENT.read())
+            push_failed = _Push_Collection(paths, overwrite, client, verbose, True, groupname)
+
+    if push_failed:
+        print "Some files failed to push."
+    else:
+        print "Pushed successfully."
+
+
 def Push_All():
     """
     Pushes all files to Dropbox.
 
     OPTIONS
 
+    -d
+        Duplicate; if the file being pushed already exists on Dropbox, then
+        this file will have a duplicate name. Equivalent to having the
+        `paths.conf` overwrite setting set to false. If both -d and -o flags
+        are entered, the one entered last will take priority, regardless of
+        the `paths.conf` setting.
+
+    -o
+        Overwrite; if the file being pushed already exists on Dropbox, then
+        this file will overwrite the existing version. Equivalent to having the
+        `paths.conf` overwrite setting set to true. If both -d and -o flags are
+        entered, the one entered last will take priority, regardless of the 
+        `paths.conf` setting.
+
     -v
         Verbose output; displays a message for every file pushed.
     """
 
-    verbose = False
-
-    if len(sys.argv) > 3:
+    if len(sys.argv) > 5:
         raise Exception("\n\tToo many options.")
 
-    if len(sys.argv) == 3:
-        if sys.argv[2] != "-v":
-            raise Exception("\n\tInvalid option. Available options are: -v")
-        verbose = True
-
-    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
-    with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
-        ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
+    boxley_dir, ACCESS_TOKEN, overwrite = _Get_Push_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
+    verbose = False
+
+    i, N = 2, len(sys.argv)
+    while i < N:
+        param = sys.argv[i]
+
+        if param == "-v":
+            verbose = True
+
+        elif param == "-d":
+            overwrite = False
+
+        elif param == "-o":
+            overwrite = True
+
+        else:
+            raise Exception("\n\tInvalid option. Available options are: -d, -o, -v")
+
+        i += 1
 
     # get all files, remove boxley.conf from the list, then open each one and
     # push every path in each
@@ -228,25 +505,16 @@ def Push_All():
     all_files.remove("boxley.conf")
 
     for paths_filename in all_files:
+        is_group = False
+        groupname = ""
+
         with open(os.path.join(boxley_dir, paths_filename)) as PATHSFILE_CONTENT:
             paths = json.loads(PATHSFILE_CONTENT.read())
-            group = False
+            if "group" in paths_filename:
+                groupname = paths_filename[6:-5]
+                is_group = True
 
-            if verbose:
-                if "group" in paths_filename:
-                    print "Uploading group \"%s\" ..." % paths_filename[6:-5]
-                    group = True
-
-            for local_path in paths:
-                db_path = paths[local_path]
-
-                with open(local_path, "rb") as f:
-                    client.put_file(db_path, f)
-                    if verbose:
-                        if group:
-                            print "\tuploaded", local_path
-                        else:
-                            print "Uploaded", local_path
+            _Push_Collection(paths, client, overwrite, verbose, is_group, groupname)
 
     print "All files synced successfully."
 
@@ -257,5 +525,9 @@ elif cmd == "add":
     Add()
 elif cmd == "mkgroup":
     Make_Group()
+elif cmd == "push":
+    Push()
+elif cmd == "pushgroup":
+    Push_Group()
 elif cmd == "pushall":
     Push_All()
