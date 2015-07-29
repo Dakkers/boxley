@@ -63,7 +63,7 @@ def _Push_Collection_Quietly(paths, client, overwrite):
     push_failed = False
 
     for local_path in paths:
-        if local_path not in paths:
+        if not os.path.isfile(local_path):
             print "File not found: %s" % local_path
             push_failed = True
             continue
@@ -271,6 +271,100 @@ def Make_Group():
     _Make_Group_File(groupfile_path)
 
 
+def Pull():
+    """
+    Pulls files from Dropbox.
+
+    OPTIONS
+
+    -g
+        Group name; if the files being pulled belong to a group, the groupname
+        must be specified. Only files of one group can be pulled at a time.
+
+    -v
+        Verbose; prints a message for every file pulled.
+    """
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
+        ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
+    client = dropbox.client.DropboxClient(ACCESS_TOKEN)
+
+    verbose = False
+    paths_in_group = False
+    paths_to_pull = []
+
+    i, N = 2, len(sys.argv)
+    while i < N:
+        param = sys.argv[i]
+
+        if param == "-g":
+            if paths_in_group:
+                raise Exception("Only one group can be specified.")
+            paths_in_group = True
+            groupname = sys.argv[i+1]
+            i += 1
+        
+        elif param == "-v":
+            verbose = True
+
+        else:
+            paths_to_pull.append(os.path.abspath(sys.argv[i]))
+            
+        i += 1
+
+    if paths_in_group:
+        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        if not os.path.isfile(paths_filename):
+            print "Group \"%s\" does not exist. Exiting..." % groupname
+            return
+    else:
+        paths_filename = os.path.join(boxley_dir, "paths.conf")
+
+    paths = {}
+    with open(paths_filename) as PATHSFILE_CONTENT:
+        paths = json.loads(PATHSFILE_CONTENT.read())
+
+    pull_failed = False
+
+    # this code is fuckin' ugly & redundant, I'll clean it up another day.
+    if verbose:
+        if paths_in_group:
+            print "Uploading files to group %s ..." % groupname
+
+        for local_path in paths_to_pull:
+            if local_path not in paths:
+                print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+                push_failed = True
+                continue
+
+            db_path = paths[local_path]
+            with open(local_path, "wb") as f:
+                print db_path
+                content, metadata = client.get_file_and_metadata(db_path)
+                f.write(content.read())
+                if paths_in_group:
+                    print "\tdownloaded", local_path
+                else:
+                    print "Downloaded", local_path
+
+    else:
+        for local_path in paths_to_pull:
+            if local_path not in paths:
+                print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+                push_failed = True
+                continue
+
+            db_path = paths[local_path]
+            with open(local_path, "wb") as f:
+                content, metadata = client.get_file_and_metadata(db_path)
+                f.write(content.read())
+
+    if pull_failed:
+        print "Some files failed to pull."
+    else:
+        print "Pulled successfully."
+
+
 def Push():
     """
     Pushes given files to Dropbox.
@@ -283,6 +377,10 @@ def Push():
         `paths.conf` overwrite setting set to false. If both -d and -o flags
         are entered, the one entered last will take priority, regardless of
         the `paths.conf` setting.
+
+    -g
+        Group name; if the file(s) belong to a group, the groupname must be
+        given. Only files of one group can be pushed at a time.
 
     -o
         Overwrite; if the file being pushed already exists on Dropbox, then
@@ -309,6 +407,8 @@ def Push():
             overwrite = False
 
         elif param == "-g":
+            if paths_in_group:
+                raise Exception("Only one group can be specified.")
             paths_in_group = True
             groupname = sys.argv[i+1]
             i += 1
@@ -346,7 +446,7 @@ def Push():
 
         for local_path in paths_to_push:
             if local_path not in paths:
-                print "File not found: %s" % local_path
+                print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
                 push_failed = True
                 continue
 
@@ -361,7 +461,7 @@ def Push():
     else:
         for local_path in paths_to_push:
             if local_path not in paths:
-                print "File not found: %s" % local_path
+                print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
                 push_failed = True
                 continue
 
@@ -426,6 +526,8 @@ def Push_Group():
         print "Group name(s) not specified. Exiting..."
         return
 
+    # for each group, get the .conf file, get the paths from each, and then
+    # push every one
     for groupname in groupnames:
 
         paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
@@ -438,8 +540,6 @@ def Push_Group():
             paths = json.loads(PATHSFILE_CONTENT.read())
 
         push_failed = False
-
-        # push all ze files
         with open(os.path.join(boxley_dir, paths_filename)) as PATHSFILE_CONTENT:
             paths = json.loads(PATHSFILE_CONTENT.read())
             push_failed = _Push_Collection(paths, overwrite, client, verbose, True, groupname)
@@ -503,7 +603,6 @@ def Push_All():
     # push every path in each
     all_files = os.listdir(boxley_dir)
     all_files.remove("boxley.conf")
-
     for paths_filename in all_files:
         is_group = False
         groupname = ""
@@ -525,6 +624,8 @@ elif cmd == "add":
     Add()
 elif cmd == "mkgroup":
     Make_Group()
+elif cmd == "pull":
+    Pull()
 elif cmd == "push":
     Push()
 elif cmd == "pushgroup":
