@@ -162,6 +162,35 @@ boxley add -root -d MyDirectory file.txt
 ```
 
 
+### `del [options] [files]`
+Deletes file paths from `paths.conf`. If a group is specified (see `-g` below), then the file path is deleted from the group file instead. If a file path  cannot be found in the corresponding `.conf` file, it is skipped.
+
+Example:
+
+```bash
+boxley add file.txt
+# /home/you/some/path/file.txt  -->  /Boxley/some/path/file.txt
+
+boxley add fileA.txt fileB.txt
+# /home/you/some/path/fileA.txt  -->  /Boxley/some/path/fileA.txt
+# /home/you/some/path/fileB.txt  -->  /Boxley/some/path/fileB.txt
+```
+
+If `RELATIVE_TO_HOME` is `false`, then:
+
+```bash
+boxley del file.txt
+```
+
+#### Options
+##### `-g`
+Deletes the file path(s) from the group file specified by its name. If the group does not exist, the process is aborted.
+
+```bash
+boxley del -g mygroup file.txt
+```
+
+
 ### `mkgroup [groupname]`
 Creates a group file.
 

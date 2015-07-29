@@ -15,21 +15,6 @@ def _Make_Group_File(groupfile_path):
         GROUPFILE.write("{}\n")
 
 
-def _Add_Paths_To_File(file_path, new_paths):
-    """
-    Adds paths to a file. The file is either `paths.conf` or a group file.
-    """
-    paths = {}
-    with open(file_path) as PATHSFILE_CONTENT:
-        paths = json.loads(PATHSFILE_CONTENT.read())
-
-    for local_path in new_paths:
-        paths[local_path] = new_paths[local_path]
-
-    with open(file_path, "w") as PATHSFILE_CONTENT:
-        PATHSFILE_CONTENT.write(json.dumps(paths)+"\n")
-
-
 def _Get_Push_Settings():
     boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
     with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
@@ -297,17 +282,80 @@ def Add():
     # if a group was specified, add the files to the appropriate group file,
     # creating the group file if necessary
     if add_to_group:
-        groupfile_path = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
 
-        if not os.path.isfile(groupfile_path):
+        if not os.path.isfile(paths_filename):
             print "Group \"%s\" does not exist. Creating it..." % groupname
-            _Make_Group_File(groupfile_path)
+            _Make_Group_File(paths_filename)
 
-        _Add_Paths_To_File(groupfile_path, new_paths)
-        return
+    else:
+        paths_filename = os.path.join(boxley_dir, "paths.conf")
 
-    # append files to `paths.conf` if we're not adding to a group
-    _Add_Paths_To_File(os.path.join(boxley_dir, "paths.conf"), new_paths)
+    # grab the paths file, iterate over the paths that are given and add them
+    paths = {}
+    with open(paths_filename) as PATHSFILE_CONTENT:
+        paths = json.loads(PATHSFILE_CONTENT.read())
+
+    for local_path in new_paths:
+        paths[local_path] = new_paths[local_path]
+
+    with open(paths_filename, "w") as PATHSFILE_CONTENT:
+        PATHSFILE_CONTENT.write(json.dumps(paths)+"\n")
+
+
+def Delete():
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+
+    delete_from_group = False
+    paths_to_delete = []
+
+    i, num_args = 2, len(sys.argv)
+    while i < num_args:
+        param = sys.argv[i]
+
+        if param == "-g":
+            if i == num_args - 1:
+                raise Exception("\n\tMissing specified directory and input file.")
+
+            if i == num_args - 2:
+                raise Exception("\n\tMissing groupname or input file.")
+
+            if delete_from_group:
+                raise Exception("\n\tOnly one group can be specified.")
+
+            groupname = sys.argv[i+1]
+            delete_from_group = True
+            i += 1
+
+        else:
+            paths_to_delete.append(param)
+
+        i += 1
+
+    if delete_from_group:
+        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        if not os.path.isfile(paths_filename):
+            print "Group \"%s\" does not exist. Exiting..." % groupname
+            return
+    else:
+        paths_filename = os.path.join(boxley_dir, "paths.conf")
+
+    # grab the paths file, go through the paths specified and delete them; if 
+    # the path cannot be found in the file, skip it
+    with open(paths_filename) as PATHSFILE_CONTENT:
+        paths = json.loads(PATHSFILE_CONTENT.read())
+
+    for local_path in paths_to_delete:
+        absolute_local_path = os.path.abspath(local_path)
+
+        if absolute_local_path not in paths:
+            print "\"%s\" does not contain \"%s\"" % (file_path, absolute_local_path)
+            continue
+        
+        del paths[absolute_local_path]
+
+    with open(paths_filename, "w") as PATHSFILE_CONTENT:
+        PATHSFILE_CONTENT.write(json.dumps(paths)+"\n")
 
 
 def Make_Group():
@@ -492,7 +540,6 @@ def Pull_All():
         print "Some files failed to be pulled."
     else:
         print "All files pulled successfully."
-
 
 
 def Push():
@@ -731,6 +778,8 @@ if cmd == "init":
     Init()
 elif cmd == "add":
     Add()
+elif cmd == "del":
+    Delete()
 elif cmd == "mkgroup":
     Make_Group()
 elif cmd == "pull":
