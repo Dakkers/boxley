@@ -61,6 +61,7 @@ I like examples, so I'll put a lot here. My notation for displaying the mapping 
 
 These commands assume the default settings are used. See above.
 
+
 ### `add [options] [files]`
 Adds file paths to `paths.conf`, which can then be pushed. If a group is specified (see `-g` below), then the path is added to a group file instead. The Dropbox file path defaults to the local file path. Multiple files can be specified, and *should* work with any option.
 
@@ -84,7 +85,7 @@ boxley add file.txt
 
 #### Options
 ##### `-g`
-Adds the file path(s) to the group file specified by its name. Group filenames are of the form `group-GROUPNAME.conf`.
+Adds the file path(s) to the group file specified by its name. Group filenames are of the form `group-GROUPNAME.conf`. If the group does not already exist, it is created.
 
 ```bash
 boxley add -g mygroup file.txt
@@ -120,6 +121,7 @@ boxley add -root -d MyDirectory file.txt
 # /home/you/some/path/file.txt  -->  /MyDirectory/file.txt
 ```
 
+
 ### `mkgroup [groupname]`
 Creates a group file.
 
@@ -127,8 +129,28 @@ Creates a group file.
 boxley mkgroup awesomestuff     # creates ~/.boxley/group-awesomestuff.conf
 ```
 
-### `push [options] [path(s)]`
-Pushes specified files to Dropbox. If a file belongs to a group, its group name MUST be specified, unless it belongs to both `paths.conf` and a group, in which case, either one can be specified. Files of different groups CANNOT be added at the same time; only files of one group can be.
+
+### `pull [options] [file(s)]`
+Pulls specified files from Dropbox. If a file belongs to a group, its group name MUST be specified, unless it belongs to both `paths.conf` and a group, in which case, either one can be specified. Files of different groups CANNOT be pulled at the same time; only files of one group can be. If a file specified does not exist in the `*.conf` file it *should* belong to, then it will be skipped.
+
+```bash
+boxley pull myfile.txt
+boxley pull file_A.txt file_B.txt
+
+# if file_C.txt and file_D.txt are in the group "hello"
+boxley push -g hello file_C.txt file_D.txt
+```
+
+#### Options
+##### `-g`
+Group that the file(s) belong to. Multiple groups cannot be specified. If a file belongs to a group, its group must be specified.
+
+##### `-v`
+Verbose output; prints a message for every file that is pulled.
+
+
+### `push [options] [file(s)]`
+Pushes specified files to Dropbox. If a file belongs to a group, its group name MUST be specified, unless it belongs to both `paths.conf` and a group, in which case, either one can be specified. Files of different groups CANNOT be added at the same time; only files of one group can be. If a file specified does not exist in the `*.conf` file it *should* belong to, then it will be skipped.
 
 ```bash
 boxley push myfile.txt
@@ -153,17 +175,9 @@ Overwrite; if the file being pushed already exists on Dropbox, then this file wi
 ##### `-v`
 Verbose output; prints a message for every file that is pushed.
 
-### `pushgroup [options] [groupname(s)]`
-Pushes specified group(s) to Dropbox.
-
-```bash
-boxley pushgroup awesomestuff     # a single group
-
-boxley pushgroup -d sprites models    # push multiple groups, and duplicate files instead of overwriting
-```
 
 ### `pushall [options]`
-Pushes ALL paths (those specified in `paths.conf` and all `group-*.conf` files) to Dropbox.
+Pushes ALL paths (those specified in `paths.conf` and all `group-*.conf` files) to Dropbox. If a file in the `*.conf` file cannot be found, it is skipped.
 
 ```bash
 boxley pushall
@@ -179,8 +193,9 @@ Overwrite; if the file being pushed already exists on Dropbox, then this file wi
 ##### `-v`
 Verbose output; prints a message for every file that is pushed.
 
+
 ### `pushgroup [options] [groupname(s)]`
-Pushes specified group(s) to Dropbox.
+Pushes specified group(s) to Dropbox. If a file in the `group-*.conf` file cannot be found, it is skipped.
 
 ```bash
 boxley pushgroup awesomestuff     # a single group

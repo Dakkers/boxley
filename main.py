@@ -45,15 +45,98 @@ def _Get_Push_Settings():
     return boxley_dir, ACCESS_TOKEN, overwrite
 
 
+def _Pull_Files_Quietly(paths_to_pull, paths, paths_filename, client):
+    pull_failed = False
+
+    for local_path in paths_to_pull:
+        if local_path not in paths:
+            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+            pull_failed = True
+            continue
+
+        db_path = paths[local_path]
+        with open(local_path, "wb") as f:
+            content, metadata = client.get_file_and_metadata(db_path)
+            f.write(content.read())
+    
+    return pull_failed    
+
+
+def _Pull_Files_Verbosely(paths_to_pull, paths, paths_filename, client, paths_in_group, groupname=""):
+    pull_failed = False
+
+    if paths_in_group:
+        print "Uploading files to group \"%s\" ..." % groupname
+
+    for local_path in paths_to_pull:
+        if local_path not in paths:
+            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+            pull_failed = True
+            continue
+
+        db_path = paths[local_path]
+        with open(local_path, "wb") as f:
+            content, metadata = client.get_file_and_metadata(db_path)
+            f.write(content.read())
+            if paths_in_group:
+                print "\tdownloaded", local_path
+            else:
+                print "Downloaded", local_path
+
+    return pull_failed
+
+
+
+def _Push_Files_Quietly(paths_to_push, paths, paths_filename, client, overwrite):
+    push_failed = False
+
+    for local_path in paths_to_push:
+        if local_path not in paths:
+            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+            push_failed = True
+            continue
+
+        db_path = paths[local_path]
+        with open(local_path, "rb") as f:
+            client.put_file(db_path, f, overwrite=overwrite)
+
+    return push_failed
+
+
+def _Push_Files_Verbosely(paths_to_push, paths, paths_filename, client, overwrite, paths_in_group, groupname=""):
+    push_failed = False
+
+    if paths_in_group:
+        print "Uploading files to group \"%s\" ..." % groupname
+
+    for local_path in paths_to_push:
+        if local_path not in paths:
+            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+            push_failed = True
+            continue
+
+        db_path = paths[local_path]
+        with open(local_path, "rb") as f:
+            client.put_file(db_path, f, overwrite=overwrite)
+            if paths_in_group:
+                print "\tuploaded", local_path
+            else:
+                print "Uploaded", local_path
+
+    return push_failed
+
+
 def _Push_Collection(paths, client, overwrite, verbose, is_group, groupname=""):
     """
     Pushes a 'collection' of files; only applies to `pushall` and `pushgroup`.
     """
     # applies to "pushall" and "pushgroup"
     if verbose:
-        _Push_Collection_Verbosely(paths, overwrite, client, is_group, groupname)
+        push_failed = _Push_Collection_Verbosely(paths, overwrite, client, is_group, groupname)
     else:
-        _Push_Collection_Quietly(paths, overwrite, client)
+        push_failed = _Push_Collection_Quietly(paths, overwrite, client)
+
+    return push_failed
 
 
 def _Push_Collection_Quietly(paths, client, overwrite):
@@ -249,7 +332,7 @@ def Add():
         groupfile_path = os.path.join(boxley_dir, "group-%s.conf" % groupname)
 
         if not os.path.isfile(groupfile_path):
-            print "Group %s does not exist. Creating it..." % groupname
+            print "Group \"%s\" does not exist. Creating it..." % groupname
             _Make_Group_File(groupfile_path)
 
         _Add_Paths_To_File(groupfile_path, new_paths)
@@ -291,6 +374,7 @@ def Pull():
 
     verbose = False
     paths_in_group = False
+    groupname = ""
     paths_to_pull = []
 
     i, N = 2, len(sys.argv)
@@ -326,38 +410,10 @@ def Pull():
 
     pull_failed = False
 
-    # this code is fuckin' ugly & redundant, I'll clean it up another day.
     if verbose:
-        if paths_in_group:
-            print "Uploading files to group %s ..." % groupname
-
-        for local_path in paths_to_pull:
-            if local_path not in paths:
-                print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
-                push_failed = True
-                continue
-
-            db_path = paths[local_path]
-            with open(local_path, "wb") as f:
-                print db_path
-                content, metadata = client.get_file_and_metadata(db_path)
-                f.write(content.read())
-                if paths_in_group:
-                    print "\tdownloaded", local_path
-                else:
-                    print "Downloaded", local_path
-
+        pull_failed = _Pull_Files_Verbosely(paths_to_pull, paths, paths_filename, client, paths_in_group, groupname)
     else:
-        for local_path in paths_to_pull:
-            if local_path not in paths:
-                print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
-                push_failed = True
-                continue
-
-            db_path = paths[local_path]
-            with open(local_path, "wb") as f:
-                content, metadata = client.get_file_and_metadata(db_path)
-                f.write(content.read())
+        pull_failed = _Pull_Files_Quietly(paths_to_pull, paths, paths_filename, client)
 
     if pull_failed:
         print "Some files failed to pull."
@@ -398,6 +454,7 @@ def Push():
     paths_to_push = []
     verbose = False
     paths_in_group = False
+    groupname = ""
 
     i, N = 2, len(sys.argv)
     while i < N:
@@ -437,37 +494,10 @@ def Push():
     with open(paths_filename) as PATHSFILE_CONTENT:
         paths = json.loads(PATHSFILE_CONTENT.read())
 
-    push_failed = False
-
-    # this code is fuckin' ugly & redundant, I'll clean it up another day.
     if verbose:
-        if paths_in_group:
-            print "Uploading files to group %s ..." % groupname
-
-        for local_path in paths_to_push:
-            if local_path not in paths:
-                print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
-                push_failed = True
-                continue
-
-            db_path = paths[local_path]
-            with open(local_path, "rb") as f:
-                client.put_file(db_path, f, overwrite=overwrite)
-                if paths_in_group:
-                    print "\tuploaded", local_path
-                else:
-                    print "Uploaded", local_path
-
+        push_failed = _Push_Files_Verbosely(paths_to_push, paths, paths_filename, client, overwrite, paths_in_group, groupname)
     else:
-        for local_path in paths_to_push:
-            if local_path not in paths:
-                print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
-                push_failed = True
-                continue
-
-            db_path = paths[local_path]
-            with open(local_path, "rb") as f:
-                client.put_file(db_path, f, overwrite=overwrite)
+        push_failed = _Push_Files_Quietly(paths_to_push, paths, paths_filename, client, overwrite)
 
     if push_failed:
         print "Some files failed to push."
@@ -599,6 +629,8 @@ def Push_All():
 
         i += 1
 
+    push_failed = False
+
     # get all files, remove boxley.conf from the list, then open each one and
     # push every path in each
     all_files = os.listdir(boxley_dir)
@@ -613,9 +645,12 @@ def Push_All():
                 groupname = paths_filename[6:-5]
                 is_group = True
 
-            _Push_Collection(paths, client, overwrite, verbose, is_group, groupname)
+            push_failed = _Push_Collection(paths, client, overwrite, verbose, is_group, groupname)
 
-    print "All files synced successfully."
+    if push_failed:
+        print "Some files failed to push."
+    else:
+        print "All files pushed successfully."
 
 
 if cmd == "init":
