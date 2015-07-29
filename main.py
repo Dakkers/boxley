@@ -45,7 +45,20 @@ def _Get_Push_Settings():
     return boxley_dir, ACCESS_TOKEN, overwrite
 
 
+def _Pull_Files(paths_to_pull, paths, paths_filename, client, verbose, paths_in_group, groupname=""):
+    if verbose:
+        pull_failed = _Pull_Files_Verbosely(paths_to_pull, paths, paths_filename, client, paths_in_group, groupname)
+    else:
+        pull_failed = _Pull_Files_Quietly(paths_to_pull, paths, paths_filename, client)
+
+    return pull_failed
+
+
 def _Pull_Files_Quietly(paths_to_pull, paths, paths_filename, client):
+    """
+    Pulls all paths in the list `paths_to_pull`.
+    """
+
     pull_failed = False
 
     for local_path in paths_to_pull:
@@ -86,6 +99,14 @@ def _Pull_Files_Verbosely(paths_to_pull, paths, paths_filename, client, paths_in
     return pull_failed
 
 
+def _Push_Files(paths_to_pull, paths, paths_filename, client, overwrite, verbose, paths_in_group, groupname=""):
+    if verbose:
+        push_failed = _Push_Files_Verbosely(paths_to_pull, paths, paths_filename, client, overwrite, paths_in_group, groupname)
+    else:
+        push_failed = _Push_Files_Quietly(paths_to_pull, paths, paths_filename, client, overwrite)
+
+    return push_failed
+
 
 def _Push_Files_Quietly(paths_to_push, paths, paths_filename, client, overwrite):
     push_failed = False
@@ -119,66 +140,6 @@ def _Push_Files_Verbosely(paths_to_push, paths, paths_filename, client, overwrit
         with open(local_path, "rb") as f:
             client.put_file(db_path, f, overwrite=overwrite)
             if paths_in_group:
-                print "\tuploaded", local_path
-            else:
-                print "Uploaded", local_path
-
-    return push_failed
-
-
-def _Push_Collection(paths, client, overwrite, verbose, is_group, groupname=""):
-    """
-    Pushes a 'collection' of files; only applies to `pushall` and `pushgroup`.
-    """
-    # applies to "pushall" and "pushgroup"
-    if verbose:
-        push_failed = _Push_Collection_Verbosely(paths, overwrite, client, is_group, groupname)
-    else:
-        push_failed = _Push_Collection_Quietly(paths, overwrite, client)
-
-    return push_failed
-
-
-def _Push_Collection_Quietly(paths, client, overwrite):
-    """
-    Pushes multiple files quietly.
-    """
-    push_failed = False
-
-    for local_path in paths:
-        if not os.path.isfile(local_path):
-            print "File not found: %s" % local_path
-            push_failed = True
-            continue
-
-        db_path = paths[local_path]
-
-        with open(local_path, "rb") as f:
-            client.put_file(db_path, f, overwrite=overwrite)
-
-    return push_failed
-
-
-def _Push_Collection_Verbosely(paths, overwrite, client, is_group, groupname=""):
-    """
-    Pushes multiple files VERY LOUDLY
-    """
-    push_failed = False
-
-    if is_group:
-        print "Uploading is_group \"%s\" ..." % groupname
-
-    for local_path in paths:
-        if local_path not in paths:
-            print "File not found: %s" % local_path
-            push_failed = True
-            continue
-
-        db_path = paths[local_path]
-
-        with open(local_path, "rb") as f:
-            client.put_file(db_path, f, overwrite=overwrite)
-            if is_group:
                 print "\tuploaded", local_path
             else:
                 print "Uploaded", local_path
@@ -408,15 +369,70 @@ def Pull():
     with open(paths_filename) as PATHSFILE_CONTENT:
         paths = json.loads(PATHSFILE_CONTENT.read())
 
-    pull_failed = False
-
-    if verbose:
-        pull_failed = _Pull_Files_Verbosely(paths_to_pull, paths, paths_filename, client, paths_in_group, groupname)
-    else:
-        pull_failed = _Pull_Files_Quietly(paths_to_pull, paths, paths_filename, client)
-
+    pull_failed = _Pull_Files(paths_to_pull, paths, paths_filename, client, verbose, paths_in_group, groupname)
     if pull_failed:
         print "Some files failed to pull."
+    else:
+        print "Pulled successfully."
+
+
+def Pull_Group():
+    """
+    Pulls all files of the group(s) specified from Dropbox.
+
+    OPTIONS
+
+    -v
+        Verbose output; displays a message for every file pushed.
+    """
+
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
+        ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
+    client = dropbox.client.DropboxClient(ACCESS_TOKEN)
+
+    verbose = False
+    groupnames = []
+
+    i, N = 2, len(sys.argv)
+    while i < N:
+        param = sys.argv[i]
+
+        if param == "-v":
+            verbose = True
+
+        else:
+            groupnames.append(param)
+            
+        i += 1
+
+    if len(groupnames) == 0:
+        print "Group name(s) not specified. Exiting..."
+        return
+
+    one_pull_failed = False
+
+    # for each group, get the .conf file, get the paths from each, and then
+    # push every one
+    for groupname in groupnames:
+
+        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        if not os.path.isfile(paths_filename):
+            print "Group \"%s\" does not exist. Skipping..." % groupname
+            continue
+
+        paths = {}
+        with open(paths_filename) as PATHSFILE_CONTENT:
+            paths = json.loads(PATHSFILE_CONTENT.read())
+
+        with open(os.path.join(boxley_dir, paths_filename)) as PATHSFILE_CONTENT:
+            paths = json.loads(PATHSFILE_CONTENT.read())
+            pull_failed = _Pull_Files(paths.keys(), paths, paths_filename, client, verbose, True, groupname)
+            if pull_failed:
+                one_pull_failed = True
+
+    if one_pull_failed:
+        print "Some files failed to be pulled."
     else:
         print "Pulled successfully."
 
@@ -481,7 +497,7 @@ def Push():
             
         i += 1
 
-
+    # if we're pushing files from a group, get the group conf file
     if paths_in_group:
         paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
         if not os.path.isfile(paths_filename):
@@ -494,11 +510,7 @@ def Push():
     with open(paths_filename) as PATHSFILE_CONTENT:
         paths = json.loads(PATHSFILE_CONTENT.read())
 
-    if verbose:
-        push_failed = _Push_Files_Verbosely(paths_to_push, paths, paths_filename, client, overwrite, paths_in_group, groupname)
-    else:
-        push_failed = _Push_Files_Quietly(paths_to_push, paths, paths_filename, client, overwrite)
-
+    push_failed = _Push_Files(paths_to_push, paths, paths_filename, client, overwrite, verbose, paths_in_group, groupname)
     if push_failed:
         print "Some files failed to push."
     else:
@@ -556,6 +568,7 @@ def Push_Group():
         print "Group name(s) not specified. Exiting..."
         return
 
+    one_push_failed = False
     # for each group, get the .conf file, get the paths from each, and then
     # push every one
     for groupname in groupnames:
@@ -572,9 +585,11 @@ def Push_Group():
         push_failed = False
         with open(os.path.join(boxley_dir, paths_filename)) as PATHSFILE_CONTENT:
             paths = json.loads(PATHSFILE_CONTENT.read())
-            push_failed = _Push_Collection(paths, overwrite, client, verbose, True, groupname)
+            push_failed = _Push_Files(paths.keys(), paths, paths_filename, client, overwrite, verbose, True, groupname)
+            if push_failed:
+                one_push_failed = True
 
-    if push_failed:
+    if one_push_failed:
         print "Some files failed to push."
     else:
         print "Pushed successfully."
@@ -629,8 +644,7 @@ def Push_All():
 
         i += 1
 
-    push_failed = False
-
+    one_push_failed = False
     # get all files, remove boxley.conf from the list, then open each one and
     # push every path in each
     all_files = os.listdir(boxley_dir)
@@ -645,9 +659,11 @@ def Push_All():
                 groupname = paths_filename[6:-5]
                 is_group = True
 
-            push_failed = _Push_Collection(paths, client, overwrite, verbose, is_group, groupname)
+            push_failed = _Push_Files(paths.keys(), paths, paths_filename, client, overwrite, verbose, is_group, groupname)
+            if push_failed:
+                one_push_failed = True
 
-    if push_failed:
+    if one_push_failed:
         print "Some files failed to push."
     else:
         print "All files pushed successfully."
@@ -661,6 +677,8 @@ elif cmd == "mkgroup":
     Make_Group()
 elif cmd == "pull":
     Pull()
+elif cmd == "pullgroup":
+    Pull_Group()
 elif cmd == "push":
     Push()
 elif cmd == "pushgroup":
