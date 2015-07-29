@@ -149,6 +149,31 @@ Group that the file(s) belong to. Multiple groups cannot be specified. If a file
 Verbose output; prints a message for every file that is pulled.
 
 
+### `pullall [options]`
+Pulls ALL files (those specified in `paths.conf` and all `group-*.conf` files) from Dropbox. If a file in the `*.conf` file cannot be found, it is skipped.
+
+```bash
+boxley pullall
+```
+
+#### Options
+##### `-v`
+Verbose output; prints a message for every file that is pushed.
+
+
+### `pullgroup [options] [groupname(s)]`
+Pulls files in specified group(s) from Dropbox. If a file in the `group-*.conf` file cannot be found, it is skipped.
+
+```bash
+boxley pullgroup awesomestuff     # a single group
+boxley pullgroup assets sprites   # multiple groups!
+```
+
+#### Options
+##### `-v`
+Verbose output; prints a message for every file that is pulled.
+
+
 ### `push [options] [file(s)]`
 Pushes specified files to Dropbox. If a file belongs to a group, its group name MUST be specified, unless it belongs to both `paths.conf` and a group, in which case, either one can be specified. Files of different groups CANNOT be added at the same time; only files of one group can be. If a file specified does not exist in the `*.conf` file it *should* belong to, then it will be skipped.
 
@@ -216,8 +241,6 @@ Verbose output; prints a message for every file that is pushed.
 ## TODO
 Implement:
 
-- pull
-- pullall
 - del
 - addfolder
 - delfolder

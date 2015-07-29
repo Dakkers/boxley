@@ -45,6 +45,13 @@ def _Get_Push_Settings():
     return boxley_dir, ACCESS_TOKEN, overwrite
 
 
+def _Get_Pull_Settings():
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
+        ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
+    return boxley_dir, ACCESS_TOKEN
+
+
 def _Pull_Files(paths_to_pull, paths, paths_filename, client, verbose, paths_in_group, groupname=""):
     if verbose:
         pull_failed = _Pull_Files_Verbosely(paths_to_pull, paths, paths_filename, client, paths_in_group, groupname)
@@ -328,9 +335,8 @@ def Pull():
     -v
         Verbose; prints a message for every file pulled.
     """
-    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
-    with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
-        ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
+    
+    boxley_dir, ACCESS_TOKEN = _Get_Pull_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
 
     verbose = False
@@ -383,12 +389,10 @@ def Pull_Group():
     OPTIONS
 
     -v
-        Verbose output; displays a message for every file pushed.
+        Verbose output; displays a message for every file pulled.
     """
 
-    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
-    with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
-        ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
+    boxley_dir, ACCESS_TOKEN = _Get_Pull_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
 
     verbose = False
@@ -435,6 +439,60 @@ def Pull_Group():
         print "Some files failed to be pulled."
     else:
         print "Pulled successfully."
+
+
+def Pull_All():
+    """
+    Pulls all files from Dropbox.
+
+    OPTIONS
+
+    -v
+        Verbose output; displays a message for every file pulled.
+    """
+
+    boxley_dir, ACCESS_TOKEN = _Get_Pull_Settings()
+    client = dropbox.client.DropboxClient(ACCESS_TOKEN)
+
+    verbose = False
+    groupnames = []
+
+    i, N = 2, len(sys.argv)
+    while i < N:
+        param = sys.argv[i]
+
+        if param == "-v":
+            verbose = True
+
+        else:
+            raise Exception("\n\tInvalid option. Available options are: -v")
+            
+        i += 1
+
+    one_pull_failed = False
+    # get all files, remove boxley.conf from the list, then open each one and
+    # pull every path in each
+    all_files = os.listdir(boxley_dir)
+    all_files.remove("boxley.conf")
+    for paths_filename in all_files:
+        is_group = False
+        groupname = ""
+
+        with open(os.path.join(boxley_dir, paths_filename)) as PATHSFILE_CONTENT:
+            paths = json.loads(PATHSFILE_CONTENT.read())
+            if "group" in paths_filename:
+                groupname = paths_filename[6:-5]
+                is_group = True
+
+            pull_failed = _Pull_Files(paths.keys(), paths, paths_filename, client, verbose, is_group, groupname)
+            if pull_failed:
+                one_pull_failed = True
+
+    if one_pull_failed:
+        print "Some files failed to be pulled."
+    else:
+        print "All files pulled successfully."
+
 
 
 def Push():
@@ -679,6 +737,8 @@ elif cmd == "pull":
     Pull()
 elif cmd == "pullgroup":
     Pull_Group()
+elif cmd == "pullall":
+    Pull_All()
 elif cmd == "push":
     Push()
 elif cmd == "pushgroup":
