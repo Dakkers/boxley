@@ -203,6 +203,7 @@ def Add():
 
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
 
+    UNIX = True if os.sep == '/' else False
     add_to_group = False
     specific_dir = False
     db_path = DEFAULT_DIR       # directory to put the file on Dropbox
@@ -264,12 +265,18 @@ def Add():
             # if the file is to be put in a specific directory, then it does
             # not need to be merged with the current directory.
             if not specific_dir:
-                db_path_copy = os.path.join(db_path_copy, local_path[1:])
+                if UNIX:
+                    db_path_copy = os.path.join(db_path_copy, local_path[1:])
+                else:
+                    db_path_copy = os.path.join(db_path_copy, local_path[3:])  # ignore C:\
 
                 # relative to home only makes sense without a specified dir.
                 if RELATIVE_TO_HOME:
                     # remove the path to home
-                    db_path_copy = db_path_copy.replace(os.path.expanduser("~"), "")
+                    if UNIX:
+                        db_path_copy = db_path_copy.replace(os.path.expanduser("~"), "")
+                    else:
+                        db_path_copy = db_path_copy.replace(os.path.expanduser("~")[3:], "")  # hacky...
 
             else:
                 db_path_copy = os.path.join(db_path_copy, file_to_add)
