@@ -10,11 +10,9 @@ There are two ways to use Boxley. The first is to get the executable, which is f
 ### Method 1 (Executable)
 (The executable isn't online yet -- sorry!)
 
-### Initialization
+### Installation
 
 See [INSTALL.md](./install.md).
-
-The last command will create `main.exe`, which can be renamed to `boxley` and put in your path. Then run `boxley init`.
 
 ## Settings
 The default settings are as follows (found in `~/.boxley/boxley.conf`):

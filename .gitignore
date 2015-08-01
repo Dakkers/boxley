@@ -10,3 +10,7 @@ test.txt
 
 # processed markdown
 README.html
+INSTALL.html
+
+# dropbox sdk
+dropbox-python-sdk-2.2.0

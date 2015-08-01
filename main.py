@@ -194,7 +194,8 @@ def Add():
         default directory.
     """
 
-    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    home = os.path.expanduser("~")
+    boxley_dir = os.path.join(home, ".boxley")
     with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
         ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
         DEFAULT_DIR  = CONFIG.readline().strip().split("=")[1]
@@ -259,6 +260,13 @@ def Add():
             db_path_copy = db_path
 
             file_to_add = sys.argv[i]    # e.g. hello.txt, src/test.c
+            if not UNIX:
+                # if using Windows, something like the Git Bash command prompt instead of
+                # cmd uses / instead of \; this makes all /'s into \'s
+                file_to_add = os.path.abspath(file_to_add)
+
+            print db_path_copy
+
             filepath, filename = os.path.split(file_to_add)  # e.g. src/test.c --> src, test.c
             local_path = os.path.join(cwd, file_to_add)
 
@@ -270,13 +278,17 @@ def Add():
                 else:
                     db_path_copy = os.path.join(db_path_copy, local_path[3:])  # ignore C:\
 
+                print db_path_copy
+
                 # relative to home only makes sense without a specified dir.
                 if RELATIVE_TO_HOME:
                     # remove the path to home
                     if UNIX:
-                        db_path_copy = db_path_copy.replace(os.path.expanduser("~"), "")
+                        db_path_copy = db_path_copy.replace(home, "")
                     else:
-                        db_path_copy = db_path_copy.replace(os.path.expanduser("~")[3:], "")  # hacky...
+                        db_path_copy = db_path_copy.replace(os.path.abspath(home)[2:], "")  # hacky...
+
+                print db_path_copy
 
             else:
                 db_path_copy = os.path.join(db_path_copy, file_to_add)
