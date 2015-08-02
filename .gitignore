@@ -2,6 +2,9 @@
 *.exe
 *.build
 
+# compiled python
+*.pyc
+
 # shhhhhhhhhhh
 boxley/secrets.txt
 

@@ -2,8 +2,7 @@ import os
 import sys
 import json
 import dropbox
-
-cmd = sys.argv[1]
+import argparse
 
 
 def _Make_Group_File(groupfile_path):
@@ -186,7 +185,7 @@ def Init():
     print "Initialized!"
 
 
-def Add():
+def Add(paths_to_add, directory, groupname, root):
     """
     Adds specified file(s) and/or folder(s) to `paths.conf`. By default, the
     file's Dropbox path will be the user-specified default directory plus the
@@ -200,7 +199,11 @@ def Add():
         The name of the directory (inside /Boxley) to put this file. Can be 
         used in conjunction with -root.
 
-    -root
+    -g
+        The groupname of the file(s). All files will be added to the same
+        group.
+
+    --root
         Adds the file to the root of the Dropbox instead of the default DB
         default directory.
     """
@@ -218,100 +221,48 @@ def Add():
     UNIX = True if os.sep == '/' else False
     add_to_group = False
     specific_dir = False
-    db_path = DEFAULT_DIR       # directory to put the file on Dropbox
+
+    db_path = DEFAULT_DIR + "/"  # directory to put the file on Dropbox
     cwd = os.getcwd()
     new_paths = {}
 
-    i, num_args = 2, len(sys.argv)
+    if root:
+        db_path = "/"
 
-    while i < num_args:
-        param = sys.argv[i]
+    if directory is not None:
+        specific_dir = True
+        db_path += directory + "/"
 
-        if param == "-g":
-            # if this is the last param, groupname and file are both missing
-            if i == num_args - 1:
-                raise Exception("\n\tMissing specified directory and input file.")
+    for local_path in paths_to_add:
+        db_path_copy = db_path
 
-            # if this is the second last param, one of (groupname, file) are missing
-            if i == num_args - 2:
-                raise Exception("\n\tMissing groupname or input file.")
+        file_to_add = os.path.abspath(local_path)        # remove .. and what not
+        filepath, filename = os.path.split(file_to_add)  # e.g. src/test.c --> src, test.c
+        local_path = os.path.join(cwd, file_to_add)
 
-            # this param is the flag, next param is groupname
-            groupname = sys.argv[i+1]
+        if not specific_dir:
+            if UNIX:
+                db_path_copy = os.path.join(db_path_copy, local_path[1:])
+            else:
+                db_path_copy = os.path.join(db_path_copy, local_path[3:])  # ignore C:\
 
-            add_to_group = True
-            i += 1   # skip next param
-
-        elif param == "-root":
-            # if this is the last param, file is missing
-            if i == num_args - 1:
-                raise Exception("\n\No input file.")
-
-            db_path = "/" + db_path.replace(DEFAULT_DIR, "")
-
-        elif param == "-d":
-            # if this is the last param, directory and file are both missing
-            if i == num_args - 1:
-                raise Exception("\n\tMissing specified directory and input file.")
-
-            # if this is the second last param, one of (directory, file) are missing
-            if i == num_args - 2:
-                raise Exception("\n\tMissing specified directory or input file.")
-
-            # this param is the flag, the next param is the specified directory
-            db_path += sys.argv[i+1] + "/"
-
-            specific_dir = True
-            i += 1  # skip the next param
+            # relative to home only makes sense without a specified dir.
+            if RELATIVE_TO_HOME:
+                # remove the path to home
+                if UNIX:
+                    db_path_copy = db_path_copy.replace(home, "")
+                else:
+                    db_path_copy = db_path_copy.replace(os.path.abspath(home)[2:], "")  # hacky...
 
         else:
+            db_path_copy = os.path.join(db_path_copy, local_path.replace(cwd+os.sep, "")) # yuck
 
-            # db_path will be modified, but if there are multiple files, we
-            # don't want it to be -- create a copy of it to modify instead
-            db_path_copy = db_path
-
-            file_to_add = sys.argv[i]    # e.g. hello.txt, src/test.c
-            if not UNIX:
-                # if using Windows, something like the Git Bash command prompt instead of
-                # cmd uses / instead of \; this makes all /'s into \'s
-                file_to_add = os.path.abspath(file_to_add)
-
-            print db_path_copy
-
-            filepath, filename = os.path.split(file_to_add)  # e.g. src/test.c --> src, test.c
-            local_path = os.path.join(cwd, file_to_add)
-
-            # if the file is to be put in a specific directory, then it does
-            # not need to be merged with the current directory.
-            if not specific_dir:
-                if UNIX:
-                    db_path_copy = os.path.join(db_path_copy, local_path[1:])
-                else:
-                    db_path_copy = os.path.join(db_path_copy, local_path[3:])  # ignore C:\
-
-                print db_path_copy
-
-                # relative to home only makes sense without a specified dir.
-                if RELATIVE_TO_HOME:
-                    # remove the path to home
-                    if UNIX:
-                        db_path_copy = db_path_copy.replace(home, "")
-                    else:
-                        db_path_copy = db_path_copy.replace(os.path.abspath(home)[2:], "")  # hacky...
-
-                print db_path_copy
-
-            else:
-                db_path_copy = os.path.join(db_path_copy, file_to_add)
-
-            db_path_copy = db_path_copy.replace(os.sep, "/")
-            new_paths[local_path] = db_path_copy
-
-        i += 1
+        db_path_copy = db_path_copy.replace(os.sep, "/")
+        new_paths[local_path] = db_path_copy
 
     # if a group was specified, add the files to the appropriate group file,
     # creating the group file if necessary
-    if add_to_group:
+    if groupname is not None:
         paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
 
         if not os.path.isfile(paths_filename):
@@ -333,36 +284,10 @@ def Add():
         PATHSFILE_CONTENT.write(json.dumps(paths)+"\n")
 
 
-def Delete():
+def Delete(paths_to_delete, groupname):
     boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
 
-    delete_from_group = False
-    paths_to_delete = []
-
-    i, num_args = 2, len(sys.argv)
-    while i < num_args:
-        param = sys.argv[i]
-
-        if param == "-g":
-            if i == num_args - 1:
-                raise Exception("\n\tMissing specified directory and input file.")
-
-            if i == num_args - 2:
-                raise Exception("\n\tMissing groupname or input file.")
-
-            if delete_from_group:
-                raise Exception("\n\tOnly one group can be specified.")
-
-            groupname = sys.argv[i+1]
-            delete_from_group = True
-            i += 1
-
-        else:
-            paths_to_delete.append(param)
-
-        i += 1
-
-    if delete_from_group:
+    if groupname is not None:
         paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
         if not os.path.isfile(paths_filename):
             print "Group \"%s\" does not exist. Exiting..." % groupname
@@ -388,19 +313,19 @@ def Delete():
         PATHSFILE_CONTENT.write(json.dumps(paths)+"\n")
 
 
-def Make_Group():
+def Make_Group(groupnames):
     boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
-    groupname = sys.argv[2]
-    groupfile_path = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+    for groupname in groupnames:
+        groupfile_path = os.path.join(boxley_dir, "group-%s.conf" % groupname)
 
-    if os.path.isfile(groupfile_path):
-        print "The group \"%s\" already exists and will not be created."
-        return
+        if os.path.isfile(groupfile_path):
+            print "The group \"%s\" already exists and will not be created."
+            return
 
-    _Make_Group_File(groupfile_path)
+        _Make_Group_File(groupfile_path)
 
 
-def Pull():
+def Pull(paths_to_pull, groupname, verbose):
     """
     Pulls files from Dropbox.
 
@@ -417,37 +342,15 @@ def Pull():
     boxley_dir, ACCESS_TOKEN = _Get_Pull_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
 
-    verbose = False
-    paths_in_group = False
-    groupname = ""
-    paths_to_pull = []
-
-    i, N = 2, len(sys.argv)
-    while i < N:
-        param = sys.argv[i]
-
-        if param == "-g":
-            if paths_in_group:
-                raise Exception("Only one group can be specified.")
-            paths_in_group = True
-            groupname = sys.argv[i+1]
-            i += 1
-        
-        elif param == "-v":
-            verbose = True
-
-        else:
-            paths_to_pull.append(os.path.abspath(sys.argv[i]))
-            
-        i += 1
-
-    if paths_in_group:
+    if groupname is not None:
         paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
         if not os.path.isfile(paths_filename):
             print "Group \"%s\" does not exist. Exiting..." % groupname
             return
+        paths_in_group = True
     else:
         paths_filename = os.path.join(boxley_dir, "paths.conf")
+        paths_in_group = False
 
     paths = {}
     with open(paths_filename) as PATHSFILE_CONTENT:
@@ -460,7 +363,7 @@ def Pull():
         print "Pulled successfully."
 
 
-def Pull_Group():
+def Pull_Group(groupnames, verbose):
     """
     Pulls all files of the group(s) specified from Dropbox.
 
@@ -472,21 +375,6 @@ def Pull_Group():
 
     boxley_dir, ACCESS_TOKEN = _Get_Pull_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
-
-    verbose = False
-    groupnames = []
-
-    i, N = 2, len(sys.argv)
-    while i < N:
-        param = sys.argv[i]
-
-        if param == "-v":
-            verbose = True
-
-        else:
-            groupnames.append(param)
-            
-        i += 1
 
     if len(groupnames) == 0:
         print "Group name(s) not specified. Exiting..."
@@ -519,7 +407,7 @@ def Pull_Group():
         print "Pulled successfully."
 
 
-def Pull_All():
+def Pull_All(verbose):
     """
     Pulls all files from Dropbox.
 
@@ -532,27 +420,15 @@ def Pull_All():
     boxley_dir, ACCESS_TOKEN = _Get_Pull_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
 
-    verbose = False
-    groupnames = []
-
-    i, N = 2, len(sys.argv)
-    while i < N:
-        param = sys.argv[i]
-
-        if param == "-v":
-            verbose = True
-
-        else:
-            raise Exception("\n\tInvalid option. Available options are: -v")
-            
-        i += 1
-
     one_pull_failed = False
     # get all files, remove boxley.conf from the list, then open each one and
     # pull every path in each
     all_files = os.listdir(boxley_dir)
     all_files.remove("boxley.conf")
+    all_files.remove("secrets.txt")
+
     for paths_filename in all_files:
+        print paths_filename
         is_group = False
         groupname = ""
 
@@ -784,6 +660,7 @@ def Push_All():
     # push every path in each
     all_files = os.listdir(boxley_dir)
     all_files.remove("boxley.conf")
+    all_files.remove("secrets.txt")
     for paths_filename in all_files:
         is_group = False
         groupname = ""
@@ -803,27 +680,55 @@ def Push_All():
     else:
         print "All files pushed successfully."
 
+
 def main():
+
+    if len(sys.argv) == 1:
+        print "No command specified. Exiting..."
+        return
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", type=str, help="The command; this should NOT be explicitly set by the user.")
+    parser.add_argument("-d", nargs=1, type=str, help="Ignore the Dropbox default directory and put the file in this directory instead.", default=[None])
+    parser.add_argument("-g", nargs=1, type=str, help="Group name.")
+
+    dup_vs_overwrite = parser.add_mutually_exclusive_group()
+    dup_vs_overwrite.add_argument("--dup", action="store_true", help="If the file being pushed already exists on Dropbox, duplicate it instead of overwriting.")
+    dup_vs_overwrite.add_argument("--overwrite", action="store_true", help="If the file being pushed already exists on Dropbox, overwrite it.")
+    parser.add_argument("--root", action="store_true", help="Ignore the Dropbox default directory and put the file in the root of Dropbox.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print more messages.")
+    
+    parser.add_argument("names", nargs='*')
+
+    cmd = sys.argv[1]
+
+    # since argparse can't interweave positional and optional args, this is a simple trick
+    # to make the command into an optional arg by prefixing it with the '-c' flag
+    args = parser.parse_args(str("-c" + " ".join(sys.argv[1:])).split())
+    # print args
+
     if cmd == "init":
         Init()
     elif cmd == "add":
-        Add()
+        Add(args.names, args.d[0], args.g, args.root)
     elif cmd == "del":
-        Delete()
+        Delete(args.names, args.g)
     elif cmd == "mkgroup":
-        Make_Group()
+        Make_Group(args.names)
     elif cmd == "pull":
-        Pull()
+        Pull(args.names, args.g, args.verbose)
     elif cmd == "pullgroup":
-        Pull_Group()
+        Pull_Group(args.names, args.verbose)
     elif cmd == "pullall":
-        Pull_All()
+        Pull_All(args.verbose)
     elif cmd == "push":
         Push()
     elif cmd == "pushgroup":
         Push_Group()
     elif cmd == "pushall":
         Push_All()
+    else:
+        print "Invalid command. Exiting..."
 
 if __name__ == '__main__':
     main()
