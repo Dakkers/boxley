@@ -21,3 +21,7 @@ MANIFEST
 
 # dropbox sdk
 dropbox-python-sdk-2.2.0
+
+# test stuff
+test/__pycache__
+test/example-files
