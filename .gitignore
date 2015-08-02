@@ -3,14 +3,18 @@
 *.build
 
 # shhhhhhhhhhh
-secrets.txt
+boxley/secrets.txt
 
 # testing file
-test.txt
+boxley/test.txt
 
 # processed markdown
 README.html
 INSTALL.html
+
+# pip related stuff 
+README
+MANIFEST
 
 # dropbox sdk
 dropbox-python-sdk-2.2.0
