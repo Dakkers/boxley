@@ -448,13 +448,13 @@ def Pull_All(verbose):
         print "All files pulled successfully."
 
 
-def Push():
+def Push(paths_to_push, duplicate_flag, groupname, overwrite_flag, verbose):
     """
     Pushes given files to Dropbox.
 
     OPTIONS
 
-    -d
+    --dup
         Duplicate; if the file being pushed already exists on Dropbox, then
         this file will have a duplicate name. Equivalent to having the
         `paths.conf` overwrite setting set to false. If both -d and -o flags
@@ -465,48 +465,28 @@ def Push():
         Group name; if the file(s) belong to a group, the groupname must be
         given. Only files of one group can be pushed at a time.
 
-    -o
+    --ov
         Overwrite; if the file being pushed already exists on Dropbox, then
         this file will overwrite the existing version. Equivalent to having the
         `paths.conf` overwrite setting set to true. If both -d and -o flags are
         entered, the one entered last will take priority, regardless of the 
         `paths.conf` setting.
 
-    -v
+    -v, --verbose
         Verbose output; displays a message for every file pushed.
     """
-
     boxley_dir, ACCESS_TOKEN, overwrite = _Get_Push_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
-    paths_to_push = []
-    verbose = False
-    paths_in_group = False
-    groupname = ""
 
-    i, N = 2, len(sys.argv)
-    while i < N:
-        param = sys.argv[i]
+    if groupname is not None:
+        paths_in_group = True
+    else:
+        paths_in_group = False
 
-        if param == "-d":
-            overwrite = False
-
-        elif param == "-g":
-            if paths_in_group:
-                raise Exception("Only one group can be specified.")
-            paths_in_group = True
-            groupname = sys.argv[i+1]
-            i += 1
-
-        elif param == "-o":
-            overwrite = True
-        
-        elif param == "-v":
-            verbose = True
-
-        else:
-            paths_to_push.append(os.path.abspath(sys.argv[i]))
-            
-        i += 1
+    if overwrite_flag:
+        overwrite = True
+    elif duplicate_flag:
+        overwrite = False
 
     # if we're pushing files from a group, get the group conf file
     if paths_in_group:
@@ -528,56 +508,37 @@ def Push():
         print "Pushed successfully."
 
 
-def Push_Group():
+def Push_Group(groupnames, duplicate_flag, overwrite_flag, verbose):
     """
     Pushes a group to Dropbox.
 
     OPTIONS
 
-    -d
+    --dup
         Duplicate; if the group files being pushed already exists on Dropbox,
         then the all_files will have a duplicate name. Equivalent to having the
         `paths.conf` overwrite setting set to false. If both -d and -o flags
         are entered, the one entered last will take priority, regardless of
         the `paths.conf` setting.
 
-    -o
+    --ov
         Overwrite; if the group being pushed already exists on Dropbox, then
         this file will overwrite the existing version. Equivalent to having the
         `paths.conf` overwrite setting set to true. If both -d and -o flags are
         entered, the one entered last will take priority, regardless of the 
         `paths.conf` setting.
 
-    -v
+    -v, --verbose
         Verbose output; displays a message for every file pushed.
     """
 
     boxley_dir, ACCESS_TOKEN, overwrite = _Get_Push_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
-    groupnames = []
-    verbose = False
 
-    i, N = 2, len(sys.argv)
-    while i < N:
-        param = sys.argv[i]
-
-        if param == "-d":
-            overwrite = False
-
-        elif param == "-o":
-            overwrite = True
-        
-        elif param == "-v":
-            verbose = True
-
-        else:
-            groupnames.append(param)
-            
-        i += 1
-
-    if len(groupnames) == 0:
-        print "Group name(s) not specified. Exiting..."
-        return
+    if overwrite_flag:
+        overwrite = True
+    elif duplicate_flag:
+        overwrite = False
 
     one_push_failed = False
     # for each group, get the .conf file, get the paths from each, and then
@@ -606,7 +567,7 @@ def Push_Group():
         print "Pushed successfully."
 
 
-def Push_All():
+def Push_All(duplicate_flag, overwrite_flag, verbose):
     """
     Pushes all files to Dropbox.
 
@@ -630,30 +591,13 @@ def Push_All():
         Verbose output; displays a message for every file pushed.
     """
 
-    if len(sys.argv) > 5:
-        raise Exception("\n\tToo many options.")
-
     boxley_dir, ACCESS_TOKEN, overwrite = _Get_Push_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
-    verbose = False
 
-    i, N = 2, len(sys.argv)
-    while i < N:
-        param = sys.argv[i]
-
-        if param == "-v":
-            verbose = True
-
-        elif param == "-d":
-            overwrite = False
-
-        elif param == "-o":
-            overwrite = True
-
-        else:
-            raise Exception("\n\tInvalid option. Available options are: -d, -o, -v")
-
-        i += 1
+    if overwrite_flag:
+        overwrite = True
+    elif duplicate_flag:
+        overwrite = False
 
     one_push_failed = False
     # get all files, remove boxley.conf from the list, then open each one and
@@ -694,7 +638,7 @@ def main():
 
     dup_vs_overwrite = parser.add_mutually_exclusive_group()
     dup_vs_overwrite.add_argument("--dup", action="store_true", help="If the file being pushed already exists on Dropbox, duplicate it instead of overwriting.")
-    dup_vs_overwrite.add_argument("--overwrite", action="store_true", help="If the file being pushed already exists on Dropbox, overwrite it.")
+    dup_vs_overwrite.add_argument("--ov",  action="store_true", help="If the file being pushed already exists on Dropbox, overwrite it.")
     parser.add_argument("--root", action="store_true", help="Ignore the Dropbox default directory and put the file in the root of Dropbox.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print more messages.")
     
@@ -705,28 +649,27 @@ def main():
     # since argparse can't interweave positional and optional args, this is a simple trick
     # to make the command into an optional arg by prefixing it with the '-c' flag
     args = parser.parse_args(str("-c" + " ".join(sys.argv[1:])).split())
-    # print args
 
     if cmd == "init":
         Init()
     elif cmd == "add":
-        Add(args.names, args.d[0], args.g, args.root)
+        Add(args.names, args.d[0], args.g[0], args.root)
     elif cmd == "del":
-        Delete(args.names, args.g)
+        Delete(args.names, args.g[0])
     elif cmd == "mkgroup":
         Make_Group(args.names)
     elif cmd == "pull":
-        Pull(args.names, args.g, args.verbose)
+        Pull(args.names, args.g[0], args.verbose)
     elif cmd == "pullgroup":
         Pull_Group(args.names, args.verbose)
     elif cmd == "pullall":
         Pull_All(args.verbose)
     elif cmd == "push":
-        Push()
+        Push(args.names, args.dup, args.g[0], args.ov, args.verbose)
     elif cmd == "pushgroup":
-        Push_Group()
+        Push_Group(args.names, args.dup, args.ov, args.verbose)
     elif cmd == "pushall":
-        Push_All()
+        Push_All(args.dup, args.ov, args.verbose)
     else:
         print "Invalid command. Exiting..."
 
