@@ -140,10 +140,24 @@ def _Push_Files_Verbosely(paths_to_push, paths, paths_filename, client, overwrit
 
 
 def Init():
-    SECRETS = open("./secrets.txt")
-    app_key = SECRETS.readline().strip()
-    app_secret = SECRETS.readline().strip()
-    SECRETS.close()
+    home_dir = os.path.expanduser("~")
+    boxley_dir = os.path.join(home_dir, ".boxley")
+    if not os.path.isdir(boxley_dir):
+        print "Creating %s ..." % boxley_dir
+        os.mkdir(boxley_dir)
+        print ("\tSince ~/.boxley was just created, you will need to create "
+               "~/.boxley/secrets.txt. See INSTALL.md for more details.")
+        print "Exiting..."
+        return
+
+    SECRETS_FILEPATH = os.path.join(boxley_dir, "secrets.txt")
+    if not os.path.isfile(SECRETS_FILEPATH):
+        print "%s not found. Exiting..." % SECRETS_FILEPATH
+        return
+
+    with open(SECRETS_FILEPATH) as SECRETS:
+        app_key = SECRETS.readline().strip()
+        app_secret = SECRETS.readline().strip()
 
     flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret)
 
@@ -157,11 +171,6 @@ def Init():
     # This will fail if the user enters an invalid authorization code
     access_token, user_id = flow.finish(code)
 
-    # create ~/.boxley
-    home_dir = os.path.expanduser("~")
-    boxley_dir = os.path.join(home_dir, ".boxley")
-    os.mkdir(boxley_dir)
-
     # create default config file and syncfiles
     with open(os.path.join(boxley_dir, "boxley.conf"), "w") as CONFIG:
         CONFIG.write("access_token=%s\n" % access_token)
@@ -173,6 +182,8 @@ def Init():
 
     with open(os.path.join(boxley_dir, "paths.conf"), "w") as PATHS:
         PATHS.write("{}\n")
+
+    print "Initialized!"
 
 
 def Add():
@@ -792,24 +803,27 @@ def Push_All():
     else:
         print "All files pushed successfully."
 
+def main():
+    if cmd == "init":
+        Init()
+    elif cmd == "add":
+        Add()
+    elif cmd == "del":
+        Delete()
+    elif cmd == "mkgroup":
+        Make_Group()
+    elif cmd == "pull":
+        Pull()
+    elif cmd == "pullgroup":
+        Pull_Group()
+    elif cmd == "pullall":
+        Pull_All()
+    elif cmd == "push":
+        Push()
+    elif cmd == "pushgroup":
+        Push_Group()
+    elif cmd == "pushall":
+        Push_All()
 
-if cmd == "init":
-    Init()
-elif cmd == "add":
-    Add()
-elif cmd == "del":
-    Delete()
-elif cmd == "mkgroup":
-    Make_Group()
-elif cmd == "pull":
-    Pull()
-elif cmd == "pullgroup":
-    Pull_Group()
-elif cmd == "pullall":
-    Pull_All()
-elif cmd == "push":
-    Push()
-elif cmd == "pushgroup":
-    Push_Group()
-elif cmd == "pushall":
-    Push_All()
+if __name__ == '__main__':
+    main()

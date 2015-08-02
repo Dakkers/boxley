@@ -5,7 +5,7 @@ Boxley is a CLI for syncing specific files with Dropbox in any directory.
 Boxley allows you to add any file to a list of files (`paths.conf`) that can then be synchronized with Dropbox. When adding a file to this list, the directory in Dropbox that the file will be synced to can be specified. Files can also be organized into "groups", so that you don't have to push individual files or all of your files at once.
 
 ## Installation
-See [INSTALL.md](./install.md).
+See [INSTALL.md](./INSTALL.md).
 
 ## Settings
 The default settings are as follows (found in `~/.boxley/boxley.conf`):
