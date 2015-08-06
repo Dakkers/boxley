@@ -1,17 +1,22 @@
 # Boxley
 Boxley is a CLI for syncing specific files with Dropbox in any directory.
 
+
 ## About
 Boxley allows you to add any file to a list of files (`paths.conf`) that can then be synchronized with Dropbox. When adding a file to this list, the directory in Dropbox that the file will be synced to can be specified. Files can also be organized into "groups", so that you don't have to push individual files or all of your files at once.
 
+
 ## Installation
-See [INSTALL.md](./INSTALL.md).
+Installation of Boxley, unfortunately, requires you to create your own Dropbox app. The reason for this is Boxley requires full read/write permissions to your Dropbox, so if I were to distribute the API key with the app, it would pose a security risk, I think.
+
+See [INSTALL.md](./INSTALL.md) for full instructions.
+
 
 ## Settings
 The default settings are as follows (found in `~/.boxley/boxley.conf`):
 
 ```
-access_token=r3aHBkL-OloAAAAAAAABvL6bch_122KBkzu3OI8kKanIyS3UN0AxKdRPUfQfWNgU
+access_token=YOUR_ACCESS_TOKEN
 db_dir=/Boxley/
 relative_to_home=true
 overwrite=true
@@ -23,7 +28,7 @@ autopull_time=---
 pull_on_startup=false
 ```
 
-- **access_token**: A user-specific Dropbox access token. Don't alter this!
+- **access_token**: A user-specific Dropbox access token. Don't alter this! It is created with `init`.
 - **db_dir**: The default directory to sync with. Make sure to have a trailing `/` at the end, regardless of your OS.
 - **relative_to_home**: Tells Boxley to include the path to your home directory in the Dropbox file paths.
 - **overwrite**: Tells Dropbox to overwrite the files that are pushed, instead of duplicating them.
