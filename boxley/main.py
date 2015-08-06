@@ -5,6 +5,26 @@ import dropbox
 import argparse
 
 
+def _Get_Access_Token():
+    app_key    = raw_input("Enter your app key here: ").strip()
+    app_secret = raw_input("Enter your app secret here: ").strip()
+
+    flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret)
+
+    # Have the user sign in and authorize this token
+    authorize_url = flow.start()
+    print
+    print "1. Go to: " + authorize_url
+    print "2. Click \"Allow\" (you might have to log in first)"
+    print "3. Copy the authorization code."
+    code = raw_input("Enter the authorization code here: ").strip()
+    print
+
+    # This will fail if the user enters an invalid authorization code
+    access_token, user_id = flow.finish(code)
+    return access_token
+
+
 def _Make_Group_File(groupfile_path):
     """
     Creates a group file at the given path. Is of the form:
@@ -53,13 +73,14 @@ def _Pull_Files_Quietly(paths_to_pull, paths, paths_filename, client):
     pull_failed = False
 
     for local_path in paths_to_pull:
-        if local_path not in paths:
-            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+        local_path_abs = os.path.abspath(local_path)
+        if local_path_abs not in paths:
+            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path_abs)
             pull_failed = True
             continue
 
-        db_path = paths[local_path]
-        with open(local_path, "wb") as f:
+        db_path = paths[local_path_abs]
+        with open(local_path_abs, "wb") as f:
             content, metadata = client.get_file_and_metadata(db_path)
             f.write(content.read())
     
@@ -73,19 +94,20 @@ def _Pull_Files_Verbosely(paths_to_pull, paths, paths_filename, client, paths_in
         print "Uploading files to group \"%s\" ..." % groupname
 
     for local_path in paths_to_pull:
-        if local_path not in paths:
-            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+        local_path_abs = os.path.abspath(local_path)
+        if local_path_abs not in paths:
+            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path_abs)
             pull_failed = True
             continue
 
-        db_path = paths[local_path]
-        with open(local_path, "wb") as f:
+        db_path = paths[local_path_abs]
+        with open(local_path_abs, "wb") as f:
             content, metadata = client.get_file_and_metadata(db_path)
             f.write(content.read())
             if paths_in_group:
-                print "\tdownloaded", local_path
+                print "\tdownloaded", local_path_abs
             else:
-                print "Downloaded", local_path
+                print "Downloaded", local_path_abs
 
     return pull_failed
 
@@ -103,13 +125,14 @@ def _Push_Files_Quietly(paths_to_push, paths, paths_filename, client, overwrite)
     push_failed = False
 
     for local_path in paths_to_push:
-        if local_path not in paths:
-            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+        local_path_abs = os.path.abspath(local_path)
+        if local_path_abs not in paths:
+            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path_abs)
             push_failed = True
             continue
 
-        db_path = paths[local_path]
-        with open(local_path, "rb") as f:
+        db_path = paths[local_path_abs]
+        with open(local_path_abs, "rb") as f:
             client.put_file(db_path, f, overwrite=overwrite)
 
     return push_failed
@@ -122,53 +145,34 @@ def _Push_Files_Verbosely(paths_to_push, paths, paths_filename, client, overwrit
         print "Uploading files to group \"%s\" ..." % groupname
 
     for local_path in paths_to_push:
-        if local_path not in paths:
-            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path)
+        local_path_abs = os.path.abspath(local_path)
+        if local_path_abs not in paths:
+            print "File not found in %s: %s" % (os.path.basename(paths_filename), local_path_abs)
             push_failed = True
             continue
 
-        db_path = paths[local_path]
-        with open(local_path, "rb") as f:
+        db_path = paths[local_path_abs]
+        with open(local_path_abs, "rb") as f:
             client.put_file(db_path, f, overwrite=overwrite)
             if paths_in_group:
-                print "\tuploaded", local_path
+                print "\tuploaded", local_path_abs
             else:
-                print "Uploaded", local_path
+                print "Uploaded", local_path_abs
 
     return push_failed
 
 
 def Init():
-    home_dir = os.path.expanduser("~")
-    boxley_dir = os.path.join(home_dir, ".boxley")
-    if not os.path.isdir(boxley_dir):
-        print "Creating %s ..." % boxley_dir
-        os.mkdir(boxley_dir)
-        print ("\tSince ~/.boxley was just created, you will need to create "
-               "~/.boxley/secrets.txt. See INSTALL.md for more details.")
-        print "Exiting..."
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    if os.path.isdir(boxley_dir):
+        print ("~/.boxley already exists. If you want to reset your access token, run "
+               "boxley resettoken and re-enter your app key and secret.\nExiting...")
         return
 
-    SECRETS_FILEPATH = os.path.join(boxley_dir, "secrets.txt")
-    if not os.path.isfile(SECRETS_FILEPATH):
-        print "%s not found. Exiting..." % SECRETS_FILEPATH
-        return
-
-    with open(SECRETS_FILEPATH) as SECRETS:
-        app_key = SECRETS.readline().strip()
-        app_secret = SECRETS.readline().strip()
-
-    flow = dropbox.client.DropboxOAuth2FlowNoRedirect(app_key, app_secret)
-
-    # Have the user sign in and authorize this token
-    authorize_url = flow.start()
-    print "1. Go to: " + authorize_url
-    print "2. Click \"Allow\" (you might have to log in first)"
-    print "3. Copy the authorization code."
-    code = raw_input("Enter the authorization code here: ").strip()
-
-    # This will fail if the user enters an invalid authorization code
-    access_token, user_id = flow.finish(code)
+    print "Creating %s..." % boxley_dir
+    os.mkdir(boxley_dir)
+ 
+    access_token = _Get_Access_Token()
 
     # create default config file and syncfiles
     with open(os.path.join(boxley_dir, "boxley.conf"), "w") as CONFIG:
@@ -183,6 +187,30 @@ def Init():
         PATHS.write("{}\n")
 
     print "Initialized!"
+
+
+def Reset_Token():
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    if not os.path.isdir(boxley_dir):
+        print "~/.boxley does not exist. Run boxley init to create it.\nExiting..."
+        return
+
+    if not os.path.isfile(os.path.join(boxley_dir, "boxley.conf")):
+        print "~/.boxley/boxley.conf does not exist.\nExiting..."
+
+    with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
+        settings = CONFIG.readlines()
+        access_token_setting = settings[0].split("=")
+        print access_token_setting
+        print "wtf\n\n"
+        access_token_setting[1] = _Get_Access_Token()
+        print access_token_setting
+        settings[0] = "=".join(access_token_setting) + "\n"
+
+    with open(os.path.join(boxley_dir, "boxley.conf"), "w") as CONFIG:
+        CONFIG.write("".join(settings))
+
+    print "Access token reset!"
 
 
 def Add(paths_to_add, directory, groupname, root):
@@ -425,7 +453,6 @@ def Pull_All(verbose):
     # pull every path in each
     all_files = os.listdir(boxley_dir)
     all_files.remove("boxley.conf")
-    all_files.remove("secrets.txt")
 
     for paths_filename in all_files:
         print paths_filename
@@ -604,7 +631,6 @@ def Push_All(duplicate_flag, overwrite_flag, verbose):
     # push every path in each
     all_files = os.listdir(boxley_dir)
     all_files.remove("boxley.conf")
-    all_files.remove("secrets.txt")
     for paths_filename in all_files:
         is_group = False
         groupname = ""
@@ -634,7 +660,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", type=str, help="The command; this should NOT be explicitly set by the user.")
     parser.add_argument("-d", nargs=1, type=str, help="Ignore the Dropbox default directory and put the file in this directory instead.", default=[None])
-    parser.add_argument("-g", nargs=1, type=str, help="Group name.")
+    parser.add_argument("-g", nargs=1, type=str, help="Group name.", default=[None])
 
     dup_vs_overwrite = parser.add_mutually_exclusive_group()
     dup_vs_overwrite.add_argument("--dup", action="store_true", help="If the file being pushed already exists on Dropbox, duplicate it instead of overwriting.")
@@ -670,6 +696,8 @@ def main():
         Push_Group(args.names, args.dup, args.ov, args.verbose)
     elif cmd == "pushall":
         Push_All(args.dup, args.ov, args.verbose)
+    elif cmd == "resettoken":
+        Reset_Token()
     else:
         print "Invalid command. Exiting..."
 
