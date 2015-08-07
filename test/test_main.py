@@ -6,23 +6,47 @@ sys.path.append("../boxley")     # damn relative paths
 import main as boxley
 
 
-def pull_helper(id1, id2, content1, content2, cwd, cwd_without_home, client):
+def file_writer(paths, file1_content, file2_content):
+    # edit the files
+    with open(paths[0], 'w') as FILE1:
+        FILE1.write(file1_content)
+    with open(paths[1], 'w') as FILE2:
+        FILE2.write(file2_content)
+
+
+def pull_helper(id1, id2, content1, content2, new_content1, new_content2, directory, groupname, 
+                root, cwd, cwd_without_home, client):
     # files that are not in a group
     file1_path = os.path.join(cwd, "example-files/file_%d.txt" % id1)
     file2_path = os.path.join(cwd, "example-files/file_%d.txt" % id2)
     paths = [file1_path, file2_path]
 
     # create the files and put them on Dropbox
-    with open(file1_path, 'w') as FILE1:
-        FILE1.write(content1)
-    with open(file2_path, 'w') as FILE2:
-        FILE2.write(content2)
+    file_writer(paths, content1, content2)
     with open(file1_path, "rb") as FILE1:
         client.put_file("/Boxley/%s/example-files/file_%d.txt" % (cwd_without_home, id1),
                         FILE1, overwrite=True)
     with open(file2_path, "rb") as FILE2:
         client.put_file("/Boxley/%s/example-files/file_%d.txt" % (cwd_without_home, id2),
                         FILE2, overwrite=True)
+
+    boxley.Add(paths, directory, groupname, root)
+
+    # edit the files, pull
+    file_writer(paths, new_content1, new_content2)
+
+    return paths
+
+
+def push_helper(id1, id2, content1, content2, directory, groupname, root, cwd):
+    # files that are not in a group
+    file1_path = os.path.join(cwd, "example-files/file_%d.txt" % id1)
+    file2_path = os.path.join(cwd, "example-files/file_%d.txt" % id2)
+    paths = [file1_path, file2_path]
+
+    # create the files and add them to a conf file
+    file_writer(paths, content1, content2)
+    boxley.Add(paths, directory, groupname, root)
 
     return paths
 
@@ -152,16 +176,12 @@ def test_Pull():
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
     cwd = os.getcwd()
     cwd_without_home = cwd.replace(home, "")[1:]  # remove leading /
+
     content1, content2 = "hello\nhello\ngoodbye!", "just-some-garbage"
+    new_content1, new_content2 = "some random new garbage\n", "POOP: People Order Our Patties\n"
+    paths = pull_helper(1, 2, content1, content2, new_content1, new_content2, None, None,
+                        False, cwd, cwd_without_home, client)
 
-    paths = pull_helper(1, 2, content1, content2, cwd, cwd_without_home, client)
-    boxley.Add(paths, None, None, False)
-
-    # edit the files, pull, check.
-    with open(paths[0], 'w') as FILE1:
-        FILE1.write("some random new garbage\n")
-    with open(paths[1], 'w') as FILE2:
-        FILE2.write("POOP: People Order Our Patties\n")
     boxley.Pull(paths, None, False)
 
     with open(paths[0]) as FILE1:
@@ -169,16 +189,12 @@ def test_Pull():
     with open(paths[1]) as FILE2:
         assert content2 == FILE2.read()
 
-
     # files that are in a group
     content3, content4 = "I'M IN a group!!", "as\n\nam\n\ni\n"
-    paths = pull_helper(3, 4, content3, content4, cwd, cwd_without_home, client)
-    boxley.Add(paths, None, "pulltest", False)
+    new_content3, new_content4 = "ugh.\n", "Mr. Robot is awesome.\n" 
+    paths = pull_helper(3, 4, content3, content4, new_content3, new_content4, None, "pulltest",
+                        False, cwd, cwd_without_home, client)
 
-    with open(paths[0], 'w') as FILE3:
-        FILE3.write("ugh.\n")
-    with open(paths[1], 'w') as FILE4:
-        FILE4.write("Mr. Robot is awesome.\n")
     boxley.Pull(paths, "pulltest", False)
 
     with open(paths[0]) as FILE3:
@@ -203,14 +219,10 @@ def test_Pull_Group():
 
     # files that are not in a group
     content1, content2 = "group1file1", "groupunfiledeux"
-    paths = pull_helper(1, 2, content1, content2, cwd, cwd_without_home, client)
-    boxley.Add(paths, None, "pullgrouptest_A", False)
+    new_content1, new_content2 = "i dunno man\n", "out of ideas\n"
+    paths = pull_helper(1, 2, content1, content2, new_content1, new_content2, None,
+                        "pullgrouptest_A", False, cwd, cwd_without_home, client)
 
-    # edit the files, pull, check.
-    with open(paths[0], 'w') as FILE1:
-        FILE1.write("i dunno man\n")
-    with open(paths[1], 'w') as FILE2:
-        FILE2.write("out of ideas\n")
     boxley.Pull_Group(["pullgrouptest_A"], False)
 
     with open(paths[0]) as FILE1:
@@ -221,19 +233,12 @@ def test_Pull_Group():
     # files that are in a group
     content3, content4 = "groupBfileAAA", "groupBfileBBB"
     content5, content6 = "zippo", "nada!"
-    paths1 = pull_helper(3, 4, content3, content4, cwd, cwd_without_home, client)
-    paths2 = pull_helper(5, 6, content5, content6, cwd, cwd_without_home, client)
-    boxley.Add(paths1, None, "pullgrouptest_B", False)
-    boxley.Add(paths2, None, "pullgrouptest_C", False)
-
-    with open(paths1[0], 'w') as FILE3:
-        FILE3.write("idea: artists\n")
-    with open(paths1[1], 'w') as FILE4:
-        FILE4.write("sirensceol\n")
-    with open(paths2[0], 'w') as FILE5:
-        FILE5.write("gibbz\n")
-    with open(paths2[1], 'w') as FILE6:
-        FILE6.write("free the skies\n")
+    new_content3, new_content4 = "idea: artists\n", "sirensceol\n"
+    new_content5, new_content6 = "gibbz\n", "free the skies\n"
+    paths1 = pull_helper(3, 4, content3, content4, new_content3, new_content4, None,
+                         "pullgrouptest_B", False, cwd, cwd_without_home, client)
+    paths2 = pull_helper(5, 6, content5, content6, new_content5, new_content6, None,
+                         "pullgrouptest_C", False, cwd, cwd_without_home, client)
 
     boxley.Pull_Group(["pullgrouptest_B", "pullgrouptest_C"], False)
 
@@ -251,8 +256,8 @@ def test_Pull_All():
     """
     `Pull_All` is tested similarly to `Pull`.
 
-    NOTE: this file removes all files in ~/.boxley except for `boxley.conf`,
-    `paths.conf`, and `secrets.txt`.
+    NOTE: this file removes all files in ~/.boxley except for `boxley.conf` and
+    `paths.conf`.
 
     Tests:
         - add two files to `paths.conf` and two files to a group "pullalltest"
@@ -262,30 +267,22 @@ def test_Pull_All():
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
     cwd = os.getcwd()
     cwd_without_home = cwd.replace(home, "")[1:]
+
     content1, content2 = "my groceries\n", "eggs\nbacon\n"
     content3, content4 = "iceberg lettuce\npeppers\n", "chocolate milk\n"
+    new_content1, new_content2 = "games I play\n", "saints row 3\ndino d-day\n"
+    new_content3, new_content4 = "battleblock theater\n", "freaking meatbags\n\n"
 
     all_files = os.listdir(boxley_dir)
     all_files.remove("boxley.conf")
     all_files.remove("paths.conf")
-    all_files.remove("secrets.txt")
     for f in all_files:
         os.remove(os.path.join(boxley_dir, f))
 
-    paths1 = pull_helper(1, 2, content1, content2, cwd, cwd_without_home, client)
-    paths2 = pull_helper(3, 4, content3, content4, cwd, cwd_without_home, client)
-    boxley.Add(paths1, None, None, False)
-    boxley.Add(paths2, None, "pullalltest", False)
-
-    # edit the files, pull, check.
-    with open(paths1[0], 'w') as FILE1:
-        FILE1.write("games I play\n")
-    with open(paths1[1], 'w') as FILE2:
-        FILE2.write("saints row 3\ndino d-day\n")
-    with open(paths2[0], 'w') as FILE3:
-        FILE3.write("battleblock theater\n")
-    with open(paths2[1], 'w') as FILE4:
-        FILE4.write("freaking meatbags\n\n")
+    paths1 = pull_helper(1, 2, content1, content2, new_content1, new_content2, None, None, 
+                         False, cwd, cwd_without_home, client)
+    paths2 = pull_helper(3, 4, content3, content4, new_content3, new_content4, None, "pullalltest", 
+                         False, cwd, cwd_without_home, client)
 
     boxley.Pull_All(False)
 
@@ -297,3 +294,41 @@ def test_Pull_All():
         assert content3 == FILE3.read()
     with open(paths2[1]) as FILE4:
         assert content4 == FILE4.read()
+
+
+def test_Push():
+    """
+    Push is tested by creating a local file, adding it to a conf file (via
+    `Add`), pushing the file, then manually pulling the file and comparing it.
+    """
+    boxley_dir, ACCESS_TOKEN = boxley._Get_Push_Settings()[:2]
+    client = dropbox.client.DropboxClient(ACCESS_TOKEN)
+    cwd = os.getcwd()
+    with open(os.path.join(boxley_dir, "paths.conf"), "w") as PATHSCONF:
+        PATHSCONF.write("{}\n")
+
+    content1, content2 = "I am tired\n", "of being creative.\n"
+    local_paths = push_helper(1, 2, content1, content2, None, None, False, cwd)
+    boxley.Push(local_paths, False, None, True, False)
+
+    # pull all files and compare with old version
+    with open(os.path.join(boxley_dir, "paths.conf")) as PATHSFILE_CONTENT:
+        paths = json.loads(PATHSFILE_CONTENT.read())
+
+    for local_path in paths:
+        with open(local_path) as FILE:
+            content, metadata = client.get_file_and_metadata(paths[local_path])
+            assert FILE.read() == content.read()
+
+    content3, content4 = "Green is not\n", "a creative colour.\n"
+    local_paths = push_helper(3, 4, content3, content4, None, "pushtest", False, cwd)
+    boxley.Push(local_paths, False, "pushtest", True, False)
+
+    # pull all files and compare with old version
+    with open(os.path.join(boxley_dir, "group-pushtest.conf")) as PATHSFILE_CONTENT:
+        paths = json.loads(PATHSFILE_CONTENT.read())
+
+    for local_path in paths:
+        with open(local_path) as FILE:
+            content, metadata = client.get_file_and_metadata(paths[local_path])
+            assert FILE.read() == content.read()
