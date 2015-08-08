@@ -1,9 +1,9 @@
 # Boxley
-Boxley is a CLI for syncing specific files with Dropbox in any directory.
+Boxley is a git-like CLI for syncing files with Dropbox.
 
 
 ## About
-Boxley allows you to add any file to a list of files (`paths.conf`) that can then be synchronized with Dropbox. When adding a file to this list, the directory in Dropbox that the file will be synced to can be specified. Files can also be organized into "groups", so that you don't have to push individual files or all of your files at once.
+Boxley allows you to add any file to a list of files (`paths.json`) that can then be synchronized with Dropbox. When adding a file to this list, the directory in Dropbox that the file will be synced to can be specified. Files can also be organized into "groups", so that you don't have to push individual files or all of your files at once.
 
 
 ## Installation
@@ -56,7 +56,7 @@ These commands assume the default settings are used. See above.
 
 
 ### `add [options] [files]`
-Adds file paths to `paths.conf`, which can then be pushed. If a group is specified (see `-g` below), then the path is added to a group file instead. The Dropbox file path defaults to the local file path. Multiple files can be specified, and *should* work with any option.
+Adds file paths to `paths.json`, which can then be pushed. If a group is specified (see `-g` below), then the path is added to a group file instead. The Dropbox file path defaults to the local file path. Multiple files can be specified, and *should* work with any option.
 
 Example:
 
@@ -78,16 +78,16 @@ boxley add file.txt
 
 #### Options
 ##### `-g`
-Adds the file path(s) to the group file specified by its name. Group filenames are of the form `group-GROUPNAME.conf`. If the group does not already exist, it is created.
+Adds the file path(s) to the group file specified by its name. Group filenames are of the form `group-GROUPNAME.json`. If the group does not already exist, it is created.
 
 ```bash
 boxley add -g mygroup file.txt
 # /home/you/some/path/file.txt  -->  /Boxley/some/path/file.txt
-# this is found in  ~/.boxley/group-mygroup.conf
+# this is found in  ~/.boxley/group-mygroup.json
 ```
 
 ##### `-root`
-Ignores the default directory in `boxley.conf`. Can be used in conjunction with `-d`.
+Ignores the default directory in `boxley.json`. Can be used in conjunction with `-d`.
 
 ```bash
 boxley add -root file.txt
@@ -116,7 +116,7 @@ boxley add -root -d MyDirectory file.txt
 
 
 ### `del [options] [files]`
-Deletes file paths from `paths.conf`. If a group is specified (see `-g` below), then the file path is deleted from the group file instead. If a file path  cannot be found in the corresponding `.conf` file, it is skipped.
+Deletes file paths from `paths.json`. If a group is specified (see `-g` below), then the file path is deleted from the group file instead. If a file path  cannot be found in the corresponding `.json` file, it is skipped.
 
 Example:
 
@@ -148,12 +148,12 @@ boxley del -g mygroup file.txt
 Creates a group file.
 
 ```bash
-boxley mkgroup awesomestuff     # creates ~/.boxley/group-awesomestuff.conf
+boxley mkgroup awesomestuff     # creates ~/.boxley/group-awesomestuff.json
 ```
 
 
 ### `pull [options] [file(s)]`
-Pulls specified files from Dropbox. If a file belongs to a group, its group name MUST be specified, unless it belongs to both `paths.conf` and a group, in which case, either one can be specified. Files of different groups CANNOT be pulled at the same time; only files of one group can be. If a file specified does not exist in the `*.conf` file it *should* belong to, then it will be skipped.
+Pulls specified files from Dropbox. If a file belongs to a group, its group name MUST be specified, unless it belongs to both `paths.json` and a group, in which case, either one can be specified. Files of different groups CANNOT be pulled at the same time; only files of one group can be. If a file specified does not exist in the `*.json` file it *should* belong to, then it will be skipped.
 
 ```bash
 boxley pull myfile.txt
@@ -172,7 +172,7 @@ Verbose output; prints a message for every file that is pulled.
 
 
 ### `pullall [options]`
-Pulls ALL files (those specified in `paths.conf` and all `group-*.conf` files) from Dropbox. If a file in the `*.conf` file cannot be found, it is skipped.
+Pulls ALL files (those specified in `paths.json` and all `group-*.json` files) from Dropbox. If a file in the `*.json` file cannot be found, it is skipped.
 
 ```bash
 boxley pullall
@@ -184,7 +184,7 @@ Verbose output; prints a message for every file that is pushed.
 
 
 ### `pullgroup [options] [groupname(s)]`
-Pulls files in specified group(s) from Dropbox. If a file in the `group-*.conf` file cannot be found, it is skipped.
+Pulls files in specified group(s) from Dropbox. If a file in the `group-*.json` file cannot be found, it is skipped.
 
 ```bash
 boxley pullgroup awesomestuff     # a single group
@@ -197,52 +197,52 @@ Verbose output; prints a message for every file that is pulled.
 
 
 ### `push [options] [file(s)]`
-Pushes specified files to Dropbox. If a file belongs to a group, its group name MUST be specified, unless it belongs to both `paths.conf` and a group, in which case, either one can be specified. Files of different groups CANNOT be added at the same time; only files of one group can be. If a file specified does not exist in the `*.conf` file it *should* belong to, then it will be skipped.
+Pushes specified files to Dropbox. If a file belongs to a group, its group name MUST be specified, unless it belongs to both `paths.json` and a group, in which case, either one can be specified. Files of different groups CANNOT be added at the same time; only files of one group can be. If a file specified does not exist in the `*.json` file it *should* belong to, then it will be skipped.
 
 ```bash
 boxley push myfile.txt
 boxley push file_A.txt file_B.txt
 
-boxley push -d myfile.txt    # duplicate file instead of overwriting
+boxley push --dup myfile.txt    # duplicate file instead of overwriting
 
 # if file_C.txt and file_D.txt are in the group "hello"
 boxley push -g hello file_C.txt file_D.txt
 ```
 
 #### Options
-##### `-d`
-Duplicate; if the file being pushed already exists on Dropbox, then this file will have a duplicate name. Equivalent to having the `paths.conf` overwrite setting set to false. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+##### `--dup`
+Duplicate; if the file being pushed already exists on Dropbox, then this file will have a duplicate name. Equivalent to having the `paths.json` overwrite setting set to false.
 
 ##### `-g`
 Group that the file(s) belong to. Multiple groups cannot be specified. If a file belongs to a group, its group must be specified.
 
-##### `-o`
-Overwrite; if the file being pushed already exists on Dropbox, then this file will overwrite the existing version. Equivalent to having the `paths.conf` overwrite setting set to true. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+##### `--ov`
+Overwrite; if the file being pushed already exists on Dropbox, then this file will overwrite the existing version. Equivalent to having the `paths.json` overwrite setting set to true.
 
 ##### `-v`
 Verbose output; prints a message for every file that is pushed.
 
 
 ### `pushall [options]`
-Pushes ALL paths (those specified in `paths.conf` and all `group-*.conf` files) to Dropbox. If a file in the `*.conf` file cannot be found, it is skipped.
+Pushes ALL paths (those specified in `paths.json` and all `group-*.json` files) to Dropbox. If a file in the `*.json` file cannot be found, it is skipped.
 
 ```bash
 boxley pushall
 ```
 
 #### Options
-##### `-d`
-Duplicate; if the file being pushed already exists on Dropbox, then this file will have a duplicate name. Equivalent to having the `paths.conf` overwrite setting set to false. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+##### `--dup`
+Duplicate; if the file being pushed already exists on Dropbox, then this file will have a duplicate name. Equivalent to having the `paths.json` overwrite setting set to false.
 
-##### `-o`
-Overwrite; if the file being pushed already exists on Dropbox, then this file will overwrite the existing version. Equivalent to having the `paths.conf` overwrite setting set to true. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+##### `--ov`
+Overwrite; if the file being pushed already exists on Dropbox, then this file will overwrite the existing version. Equivalent to having the `paths.json` overwrite setting set to true.
 
 ##### `-v`
 Verbose output; prints a message for every file that is pushed.
 
 
 ### `pushgroup [options] [groupname(s)]`
-Pushes specified group(s) to Dropbox. If a file in the `group-*.conf` file cannot be found, it is skipped.
+Pushes specified group(s) to Dropbox. If a file in the `group-*.json` file cannot be found, it is skipped.
 
 ```bash
 boxley pushgroup awesomestuff     # a single group
@@ -251,17 +251,22 @@ boxley pushgroup -d sprites models    # push multiple groups, and duplicate file
 ```
 
 #### Options
-##### `-d`
-Duplicate; if the group files being pushed already exist on Dropbox, then these files will have duplicate names. Equivalent to having the `paths.conf` overwrite setting set to false. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+##### `--dup`
+Duplicate; if the group files being pushed already exist on Dropbox, then these files will have duplicate names. Equivalent to having the `paths.json` overwrite setting set to false.
 
-##### `-o`
-Overwrite; if the group files being pushed already exist on Dropbox, then these files will overwrite the existing versions. Equivalent to having the `paths.conf` overwrite setting set to true. If both -d and -o flags are entered, the one entered LAST will take priority, regardless of the `paths.conf` setting.
+##### `--ov`
+Overwrite; if the group files being pushed already exist on Dropbox, then these files will overwrite the existing versions. Equivalent to having the `paths.json` overwrite setting set to true.
 
 ##### `-v`
 Verbose output; prints a message for every file that is pushed.
 
+## Testing
+py.test is required for running Boxley's tests. Tests **must** be run inside the `test/` directory due to a relative import. The tests can be run by simply running `py.test` inside the directory.
+
+
 ## Contributing
 Boxley, like all of us, has a few issues. These issues are put here on GitHub. If you feel as if you can fix any of those issues, feel free to submit a pull request!
+
 
 ## License
 GPL

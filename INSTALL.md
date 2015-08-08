@@ -19,13 +19,7 @@ The first step, of course, is simply:
 pip install boxley
 ```
 
-This will also install the Dropbox SDK, which is required.
-
-Then, you need to make a Dropbox app. See below ([Other things/Making a Dropbox app](#Making-a-Dropbox-app)) for instructions on how to do that.
-
-Lastly, you need to create a "secrets" file inside a Boxley directory. See below ([Other things/Creating-a-secrets-file](#Creating-a-secrets-file)) for instructions on that.
-
-Then, you should be able to run `boxley init`. See below for instructions on this.
+This will also install the Dropbox SDK, which is required. Then, you should be able to run `boxley init`. See below for instructions on this.
 
 
 ## Method 2 (Installing From Source)
@@ -41,7 +35,7 @@ Install the [Dropbox Python SDK](https://www.dropbox.com/developers/core/sdks/py
 
 
 ## Initialization
-Running `boxley init` will create `~/.boxley`, and a `boxley.conf`, `paths.conf` and `secrets.txt` inside. It will ask for the app key and app secret, which you can get from the Dropbox app console. Enter these, and you should be good to go.
+Running `boxley init` will create `~/.boxley`, and a `boxley.conf` and `paths.json` inside. It will ask for the app key and app secret, which you can get from the Dropbox app console. Enter these, follow the link to get an access token, enter that as well, and you should be good to go.
 
 
 ## Turning the source into an executable

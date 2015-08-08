@@ -28,7 +28,7 @@ def _Get_Access_Token():
 def _Make_Group_File(groupfile_path):
     """
     Creates a group file at the given path. Is of the form:
-        ~/.boxley/group-GROUPNAME.conf
+        ~/.boxley/group-GROUPNAME.json
     """
     with open(groupfile_path, "w") as GROUPFILE:
         GROUPFILE.write("{}\n")
@@ -183,7 +183,7 @@ def Init():
         CONFIG.write("autopush=false\nautopush_time=---\npush_on_startup=false\n")
         CONFIG.write("autopull=false\nautopull_time=---\npull_on_startup=false\n")
 
-    with open(os.path.join(boxley_dir, "paths.conf"), "w") as PATHS:
+    with open(os.path.join(boxley_dir, "paths.json"), "w") as PATHS:
         PATHS.write("{}\n")
 
     print "Initialized!"
@@ -201,10 +201,7 @@ def Reset_Token():
     with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
         settings = CONFIG.readlines()
         access_token_setting = settings[0].split("=")
-        print access_token_setting
-        print "wtf\n\n"
         access_token_setting[1] = _Get_Access_Token()
-        print access_token_setting
         settings[0] = "=".join(access_token_setting) + "\n"
 
     with open(os.path.join(boxley_dir, "boxley.conf"), "w") as CONFIG:
@@ -215,7 +212,7 @@ def Reset_Token():
 
 def Add(paths_to_add, directory, groupname, root):
     """
-    Adds specified file(s) and/or folder(s) to `paths.conf`. By default, the
+    Adds specified file(s) and/or folder(s) to `paths.json`. By default, the
     file's Dropbox path will be the user-specified default directory plus the
     home-relative path to the file, e.g.
 
@@ -237,22 +234,19 @@ def Add(paths_to_add, directory, groupname, root):
     """
 
     home = os.path.expanduser("~")
+    cwd  = os.getcwd()
     boxley_dir = os.path.join(home, ".boxley")
     with open(os.path.join(boxley_dir, "boxley.conf")) as CONFIG:
-        ACCESS_TOKEN = CONFIG.readline().strip().split("=")[1]
+        CONFIG.readline()
         DEFAULT_DIR  = CONFIG.readline().strip().split("=")[1]
         RELATIVE_TO_HOME = CONFIG.readline().strip().split("=")[1]
         RELATIVE_TO_HOME = True if RELATIVE_TO_HOME == "true" else False
 
-    client = dropbox.client.DropboxClient(ACCESS_TOKEN)
-
     UNIX = True if os.sep == '/' else False
-    add_to_group = False
     specific_dir = False
 
     db_path = DEFAULT_DIR + "/"  # directory to put the file on Dropbox
-    cwd = os.getcwd()
-    new_paths = {}
+    new_paths = {}               # paths to add to the JSON file
 
     if root:
         db_path = "/"
@@ -291,17 +285,16 @@ def Add(paths_to_add, directory, groupname, root):
     # if a group was specified, add the files to the appropriate group file,
     # creating the group file if necessary
     if groupname is not None:
-        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        paths_filename = os.path.join(boxley_dir, "group-%s.json" % groupname)
 
         if not os.path.isfile(paths_filename):
             print "Group \"%s\" does not exist. Creating it..." % groupname
             _Make_Group_File(paths_filename)
 
     else:
-        paths_filename = os.path.join(boxley_dir, "paths.conf")
+        paths_filename = os.path.join(boxley_dir, "paths.json")
 
     # grab the paths file, iterate over the paths that are given and add them
-    paths = {}
     with open(paths_filename) as PATHSFILE_CONTENT:
         paths = json.loads(PATHSFILE_CONTENT.read())
 
@@ -316,12 +309,12 @@ def Delete(paths_to_delete, groupname):
     boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
 
     if groupname is not None:
-        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        paths_filename = os.path.join(boxley_dir, "group-%s.json" % groupname)
         if not os.path.isfile(paths_filename):
             print "Group \"%s\" does not exist. Exiting..." % groupname
             return
     else:
-        paths_filename = os.path.join(boxley_dir, "paths.conf")
+        paths_filename = os.path.join(boxley_dir, "paths.json")
 
     # grab the paths file, go through the paths specified and delete them; if 
     # the path cannot be found in the file, skip it
@@ -332,7 +325,7 @@ def Delete(paths_to_delete, groupname):
         absolute_local_path = os.path.abspath(local_path)
 
         if absolute_local_path not in paths:
-            print "\"%s\" does not contain \"%s\"" % (file_path, absolute_local_path)
+            print "\"%s\" does not contain \"%s\"" % (local_path, absolute_local_path)
             continue
         
         del paths[absolute_local_path]
@@ -344,7 +337,7 @@ def Delete(paths_to_delete, groupname):
 def Make_Group(groupnames):
     boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
     for groupname in groupnames:
-        groupfile_path = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        groupfile_path = os.path.join(boxley_dir, "group-%s.json" % groupname)
 
         if os.path.isfile(groupfile_path):
             print "The group \"%s\" already exists and will not be created."
@@ -371,13 +364,13 @@ def Pull(paths_to_pull, groupname, verbose):
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
 
     if groupname is not None:
-        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        paths_filename = os.path.join(boxley_dir, "group-%s.json" % groupname)
         if not os.path.isfile(paths_filename):
             print "Group \"%s\" does not exist. Exiting..." % groupname
             return
         paths_in_group = True
     else:
-        paths_filename = os.path.join(boxley_dir, "paths.conf")
+        paths_filename = os.path.join(boxley_dir, "paths.json")
         paths_in_group = False
 
     paths = {}
@@ -410,11 +403,11 @@ def Pull_Group(groupnames, verbose):
 
     one_pull_failed = False
 
-    # for each group, get the .conf file, get the paths from each, and then
+    # for each group, get the .json file, get the paths from each, and then
     # push every one
     for groupname in groupnames:
 
-        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        paths_filename = os.path.join(boxley_dir, "group-%s.json" % groupname)
         if not os.path.isfile(paths_filename):
             print "Group \"%s\" does not exist. Skipping..." % groupname
             continue
@@ -484,9 +477,7 @@ def Push(paths_to_push, duplicate_flag, groupname, overwrite_flag, verbose):
     --dup
         Duplicate; if the file being pushed already exists on Dropbox, then
         this file will have a duplicate name. Equivalent to having the
-        `paths.conf` overwrite setting set to false. If both -d and -o flags
-        are entered, the one entered last will take priority, regardless of
-        the `paths.conf` setting.
+        `paths.json` overwrite setting set to false.
 
     -g
         Group name; if the file(s) belong to a group, the groupname must be
@@ -495,9 +486,7 @@ def Push(paths_to_push, duplicate_flag, groupname, overwrite_flag, verbose):
     --ov
         Overwrite; if the file being pushed already exists on Dropbox, then
         this file will overwrite the existing version. Equivalent to having the
-        `paths.conf` overwrite setting set to true. If both -d and -o flags are
-        entered, the one entered last will take priority, regardless of the 
-        `paths.conf` setting.
+        `paths.json` overwrite setting set to true.
 
     -v, --verbose
         Verbose output; displays a message for every file pushed.
@@ -515,14 +504,14 @@ def Push(paths_to_push, duplicate_flag, groupname, overwrite_flag, verbose):
     elif duplicate_flag:
         overwrite = False
 
-    # if we're pushing files from a group, get the group conf file
+    # if we're pushing files from a group, get the group json file
     if paths_in_group:
-        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        paths_filename = os.path.join(boxley_dir, "group-%s.json" % groupname)
         if not os.path.isfile(paths_filename):
             print "Group \"%s\" does not exist. Exiting..." % groupname
             return
     else:
-        paths_filename = os.path.join(boxley_dir, "paths.conf")
+        paths_filename = os.path.join(boxley_dir, "paths.json")
 
     paths = {}
     with open(paths_filename) as PATHSFILE_CONTENT:
@@ -544,16 +533,12 @@ def Push_Group(groupnames, duplicate_flag, overwrite_flag, verbose):
     --dup
         Duplicate; if the group files being pushed already exists on Dropbox,
         then the all_files will have a duplicate name. Equivalent to having the
-        `paths.conf` overwrite setting set to false. If both -d and -o flags
-        are entered, the one entered last will take priority, regardless of
-        the `paths.conf` setting.
+        `paths.json` overwrite setting set to false.
 
     --ov
         Overwrite; if the group being pushed already exists on Dropbox, then
         this file will overwrite the existing version. Equivalent to having the
-        `paths.conf` overwrite setting set to true. If both -d and -o flags are
-        entered, the one entered last will take priority, regardless of the 
-        `paths.conf` setting.
+        `paths.json` overwrite setting set to true.
 
     -v, --verbose
         Verbose output; displays a message for every file pushed.
@@ -568,11 +553,11 @@ def Push_Group(groupnames, duplicate_flag, overwrite_flag, verbose):
         overwrite = False
 
     one_push_failed = False
-    # for each group, get the .conf file, get the paths from each, and then
+    # for each group, get the .json file, get the paths from each, and then
     # push every one
     for groupname in groupnames:
 
-        paths_filename = os.path.join(boxley_dir, "group-%s.conf" % groupname)
+        paths_filename = os.path.join(boxley_dir, "group-%s.json" % groupname)
         if not os.path.isfile(paths_filename):
             print "Group \"%s\" does not exist. Skipping..." % groupname
             continue
@@ -600,19 +585,15 @@ def Push_All(duplicate_flag, overwrite_flag, verbose):
 
     OPTIONS
 
-    -d
+    --dup
         Duplicate; if the file being pushed already exists on Dropbox, then
         this file will have a duplicate name. Equivalent to having the
-        `paths.conf` overwrite setting set to false. If both -d and -o flags
-        are entered, the one entered last will take priority, regardless of
-        the `paths.conf` setting.
+        `paths.json` overwrite setting set to false.
 
-    -o
+    --ov
         Overwrite; if the file being pushed already exists on Dropbox, then
         this file will overwrite the existing version. Equivalent to having the
-        `paths.conf` overwrite setting set to true. If both -d and -o flags are
-        entered, the one entered last will take priority, regardless of the 
-        `paths.conf` setting.
+        `paths.json` overwrite setting set to true.
 
     -v
         Verbose output; displays a message for every file pushed.

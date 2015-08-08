@@ -71,8 +71,8 @@ def push_helper_2(conffile_path, boxley_dir, client):
 
 
 def test_Make_Group_File():
-    boxley._Make_Group_File("example-files/group-test.conf")
-    with open("example-files/group-test.conf") as TESTFILE:
+    boxley._Make_Group_File("example-files/group-test.json")
+    with open("example-files/group-test.json") as TESTFILE:
         content = TESTFILE.read()
 
     assert content == "{}\n"
@@ -80,15 +80,15 @@ def test_Make_Group_File():
 
 def test_Add():
     """
-    `Add` is tested by creating a dictionary that should be identical to a conf
+    `Add` is tested by creating a dictionary that should be identical to a json
     file after a file is added to it.
 
-    NOTE: removes all paths from `paths.conf`.
+    NOTE: removes all paths from `paths.json`.
 
     Tests:
-        - adding two files to `paths.conf`
-        - adding two files to `paths.conf` in a specific directory "Add-Test-1"
-        - adding two files to `paths.conf` in a specific directory "Add-Test-2"
+        - adding two files to `paths.json`
+        - adding two files to `paths.json` in a specific directory "Add-Test-1"
+        - adding two files to `paths.json` in a specific directory "Add-Test-2"
             in the Dropbox root
         - adding two files to a group "addtest3" in a specific directory
             "Add-Test-3" in the Dropbox root
@@ -103,13 +103,13 @@ def test_Add():
     path2 = os.path.join(cwd, "example-files/file_2.txt")
     paths_to_add = [path1, path2]
 
-    # remove paths from `paths.conf`
-    with open(os.path.join(boxley_dir, "paths.conf"), "w") as PATHSCONF:
+    # remove paths from `paths.json`
+    with open(os.path.join(boxley_dir, "paths.json"), "w") as PATHSCONF:
         PATHSCONF.write("{}\n")
 
     # should go to /Boxley/.../boxley/test/example-files/file_*.txt
     boxley.Add(paths_to_add, None, None, False)
-    with open(os.path.join(boxley_dir, "paths.conf")) as PATHS:
+    with open(os.path.join(boxley_dir, "paths.json")) as PATHS:
         paths = { 
             path1: "/Boxley/%s/example-files/file_1.txt" % cwd_without_home,
             path2: "/Boxley/%s/example-files/file_2.txt" % cwd_without_home
@@ -118,30 +118,30 @@ def test_Add():
 
     # should go to /Boxley/Add-Test-1/example-files/file_*.txt
     boxley.Add(paths_to_add, "Add-Test-1", None, False)
-    with open(os.path.join(boxley_dir, "paths.conf")) as PATHS:
+    with open(os.path.join(boxley_dir, "paths.json")) as PATHS:
         paths = {path1:"/Boxley/Add-Test-1/example-files/file_1.txt", path2:"/Boxley/Add-Test-1/example-files/file_2.txt"}
         assert paths == json.loads(PATHS.read())
 
     # should go to /Boxley/Add-Test-2/example-files/file_*.txt
     boxley.Add(paths_to_add, "Add-Test-2", "addtest2", False)
-    with open(os.path.join(boxley_dir, "group-addtest2.conf")) as PATHS:
+    with open(os.path.join(boxley_dir, "group-addtest2.json")) as PATHS:
         paths = {path1: "/Boxley/Add-Test-2/example-files/file_1.txt", path2: "/Boxley/Add-Test-2/example-files/file_2.txt"}
         assert paths == json.loads(PATHS.read())
 
     # should go to /Add-Test-3/example-files/file_*.txt
     boxley.Add(paths_to_add, "Add-Test-3", "addtest3", True)
-    with open(os.path.join(boxley_dir, "group-addtest3.conf")) as PATHS:
+    with open(os.path.join(boxley_dir, "group-addtest3.json")) as PATHS:
         paths = {path1: "/Add-Test-3/example-files/file_1.txt", path2: "/Add-Test-3/example-files/file_2.txt"}
         assert paths == json.loads(PATHS.read())
 
 
 def test_Delete():
     """
-    `Delete` is tested by adding a file to a conf file using `Add` and then
-    deleting the file from the conf file.
+    `Delete` is tested by adding a file to a json file using `Add` and then
+    deleting the file from the json file.
 
     Tests:
-        - deleting two files from `paths.conf`
+        - deleting two files from `paths.json`
         - deleting two files from a group "deletetest"
     """
     home = os.path.expanduser("~")
@@ -156,11 +156,11 @@ def test_Delete():
     boxley.Add(paths, None, "deletetest", False)
 
     boxley.Delete(paths, None)
-    with open(os.path.join(boxley_dir, "paths.conf")) as PATHS:
+    with open(os.path.join(boxley_dir, "paths.json")) as PATHS:
         assert "{}\n" == PATHS.read()
 
     boxley.Delete(paths, "deletetest")
-    with open(os.path.join(boxley_dir, "group-deletetest.conf")) as PATHS:
+    with open(os.path.join(boxley_dir, "group-deletetest.json")) as PATHS:
         assert "{}\n" == PATHS.read()
 
 
@@ -175,19 +175,19 @@ def test_Make_Group():
     boxley_dir = os.path.join(home, ".boxley")
 
     boxley.Make_Group(["groupA", "groupB"])
-    assert os.path.isfile(os.path.join(boxley_dir, "group-groupA.conf")) == True
-    assert os.path.isfile(os.path.join(boxley_dir, "group-groupB.conf")) == True
+    assert os.path.isfile(os.path.join(boxley_dir, "group-groupA.json")) == True
+    assert os.path.isfile(os.path.join(boxley_dir, "group-groupB.json")) == True
 
 
 def test_Pull():
     """
     `Pull` is tested by manually putting a file on Dropbox, using `Add` to add
-    the file to a conf file, changing the local copy of the file, pulling the
+    the file to a json file, changing the local copy of the file, pulling the
     file from Dropbox, and then verifying that it is identical to what it was
     before the local changes were made.
 
     Tests:
-        - adding two files to `paths.conf`
+        - adding two files to `paths.json`
         - adding two files to a group "pulltest"
     """
     home = os.path.expanduser("~")
@@ -276,10 +276,10 @@ def test_Pull_All():
     `Pull_All` is tested similarly to `Pull`.
 
     NOTE: this test removes all files in ~/.boxley except for `boxley.conf` and
-    `paths.conf`.
+    `paths.json`.
 
     Tests:
-        - add two files to `paths.conf` and two files to a group "pullalltest"
+        - add two files to `paths.json` and two files to a group "pullalltest"
     """
     home = os.path.expanduser("~")
     boxley_dir, ACCESS_TOKEN = boxley._Get_Pull_Settings()
@@ -294,7 +294,7 @@ def test_Pull_All():
 
     all_files = os.listdir(boxley_dir)
     all_files.remove("boxley.conf")
-    all_files.remove("paths.conf")
+    all_files.remove("paths.json")
     for f in all_files:
         os.remove(os.path.join(boxley_dir, f))
 
@@ -317,42 +317,42 @@ def test_Pull_All():
 
 def test_Push():
     """
-    `Push` is tested by creating a local file, adding it to a conf file (via
+    `Push` is tested by creating a local file, adding it to a json file (via
     `Add`), pushing the file, then manually pulling the file and comparing it.
 
-    NOTE: this test removes all paths in `paths.conf`, and removes the file
-    `group-pushtest.conf` (if it exists).
+    NOTE: this test removes all paths in `paths.json`, and removes the file
+    `group-pushtest.json` (if it exists).
 
     Tests:
-        - adding two files to `paths.conf`
+        - adding two files to `paths.json`
         - adding two files to a group 'pushtest'
     """
     boxley_dir, ACCESS_TOKEN = boxley._Get_Push_Settings()[:2]
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
     cwd = os.getcwd()
-    with open(os.path.join(boxley_dir, "paths.conf"), "w") as PATHSCONF:
+    with open(os.path.join(boxley_dir, "paths.json"), "w") as PATHSCONF:
         PATHSCONF.write("{}\n")
-    remove_files(["group-pushtest.conf"], boxley_dir)
+    remove_files(["group-pushtest.json"], boxley_dir)
 
     # TEST: regular files
     content1, content2 = "I am tired\n", "of being creative.\n"
     local_paths = push_helper_1(1, 2, content1, content2, None, None, False, cwd)
     boxley.Push(local_paths, False, None, True, False)
-    push_helper_2("paths.conf", boxley_dir, client)
+    push_helper_2("paths.json", boxley_dir, client)
 
     # TEST: files in a group
     content3, content4 = "Green is not\n", "a creative colour.\n"
     local_paths = push_helper_1(3, 4, content3, content4, None, "pushtest", False, cwd)
     boxley.Push(local_paths, False, "pushtest", True, False)
-    push_helper_2("group-pushtest.conf", boxley_dir, client)
+    push_helper_2("group-pushtest.json", boxley_dir, client)
 
 
 def test_Push_Group():
     """
     `Push_Group` is tested similarly to `Push`.
 
-    NOTE: removes the files `group-pushgrouptestA.conf`,
-    `group-pushgrouptestB.conf`, `group-pushgrouptestC.conf` if they exist.
+    NOTE: removes the files `group-pushgrouptestA.json`,
+    `group-pushgrouptestB.json`, `group-pushgrouptestC.json` if they exist.
 
     Tests:
         - pushing a single group 'pushgrouptestA'
@@ -363,14 +363,14 @@ def test_Push_Group():
     boxley_dir, ACCESS_TOKEN = boxley._Get_Push_Settings()[:2]
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
     cwd = os.getcwd()
-    remove_files(["group-pushgrouptestA.conf", "group-pushgrouptestB.conf",
-                  "group-pushgrouptestC.conf"], boxley_dir)
+    remove_files(["group-pushgrouptestA.json", "group-pushgrouptestB.json",
+                  "group-pushgrouptestC.json"], boxley_dir)
 
     # TEST: two files in one group
     content1, content2 = "It's time to think\n", "creatively!\n"
     push_helper_1(1, 2, content1, content2, None, "pushgrouptestA", False, cwd)
     boxley.Push_Group(["pushgrouptestA"], False, True, False)
-    push_helper_2("group-pushgrouptestA.conf", boxley_dir, client)
+    push_helper_2("group-pushgrouptestA.json", boxley_dir, client)
 
     # TEST: two groups with two files each
     content3, content4 = "It's just a\n", "boring old orange!\n"
@@ -378,8 +378,8 @@ def test_Push_Group():
     push_helper_1(3, 4, content3, content4, None, "pushgrouptestB", False, cwd)
     push_helper_1(5, 6, content5, content6, None, "pushgrouptestC", False, cwd)
     boxley.Push_Group(["pushgrouptestB", "pushgrouptestC"], False, True, False)
-    push_helper_2("group-pushgrouptestB.conf", boxley_dir, client)
-    push_helper_2("group-pushgrouptestC.conf", boxley_dir, client)
+    push_helper_2("group-pushgrouptestB.json", boxley_dir, client)
+    push_helper_2("group-pushgrouptestC.json", boxley_dir, client)
 
 
 def test_Push_All():
@@ -387,21 +387,21 @@ def test_Push_All():
     `Push_All` is tested similarly to `Push`.
 
     NOTE: removes all files from ~/.boxley except for `boxley.conf` and
-    `paths.conf`. Removes all paths from `paths.conf`.
+    `paths.json`. Removes all paths from `paths.json`.
 
     Tests:
-        - putting two files in `paths.conf` and groups 'pushalltestA' and
+        - putting two files in `paths.json` and groups 'pushalltestA' and
           'pushalltestB'
     """
     boxley_dir, ACCESS_TOKEN = boxley._Get_Pull_Settings()
     client = dropbox.client.DropboxClient(ACCESS_TOKEN)
     cwd = os.getcwd()
-    with open(os.path.join(boxley_dir, "paths.conf"), "w") as PATHSCONF:
+    with open(os.path.join(boxley_dir, "paths.json"), "w") as PATHSCONF:
         PATHSCONF.write("{}\n")
 
     all_files = os.listdir(boxley_dir)
     all_files.remove("boxley.conf")
-    all_files.remove("paths.conf")
+    all_files.remove("paths.json")
     for f in all_files:
         os.remove(os.path.join(boxley_dir, f))
 
@@ -413,6 +413,6 @@ def test_Push_All():
     push_helper_1(5, 6, content5, content6, None, "pushalltestB", False, cwd)
 
     boxley.Push_All(False, True, False)
-    push_helper_2("paths.conf", boxley_dir, client)
-    push_helper_2("group-pushalltestA.conf", boxley_dir, client)
-    push_helper_2("group-pushalltestB.conf", boxley_dir, client)
+    push_helper_2("paths.json", boxley_dir, client)
+    push_helper_2("group-pushalltestA.json", boxley_dir, client)
+    push_helper_2("group-pushalltestB.json", boxley_dir, client)
