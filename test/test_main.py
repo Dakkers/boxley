@@ -6,12 +6,11 @@ sys.path.append("../boxley")     # damn relative paths
 import main as boxley
 
 
-def file_writer(paths, file1_content, file2_content):
+def write_to_files(paths, contents):
     # edit the files
-    with open(paths[0], 'w') as FILE1:
-        FILE1.write(file1_content)
-    with open(paths[1], 'w') as FILE2:
-        FILE2.write(file2_content)
+    for path, content in zip(paths, contents):
+        with open(path, 'w') as FILE:
+            FILE.write(content)
 
 
 def remove_files(files, boxley_dir):
@@ -30,7 +29,7 @@ def pull_helper(id1, id2, content1, content2, new_content1, new_content2, direct
     paths = [file1_path, file2_path]
 
     # create the files and put them on Dropbox
-    file_writer(paths, content1, content2)
+    write_to_files(paths, [content1, content2])
     with open(file1_path, "rb") as FILE1:
         client.put_file("/Boxley/%s/example-files/file_%d.txt" % (cwd_without_home, id1),
                         FILE1, overwrite=True)
@@ -39,9 +38,8 @@ def pull_helper(id1, id2, content1, content2, new_content1, new_content2, direct
                         FILE2, overwrite=True)
 
     boxley.Add(paths, directory, groupname, root)
-
-    # edit the files, pull
-    file_writer(paths, new_content1, new_content2)
+    # edit the files
+    write_to_files(paths, [new_content1, new_content2])
 
     return paths
 
@@ -53,7 +51,7 @@ def push_helper_1(id1, id2, content1, content2, directory, groupname, root, cwd)
     paths = [file1_path, file2_path]
 
     # create the files and add them to a conf file
-    file_writer(paths, content1, content2)
+    write_to_files(paths, [content1, content2])
     boxley.Add(paths, directory, groupname, root)
 
     return paths

@@ -190,6 +190,9 @@ def Init():
 
 
 def Reset_Token():
+    """
+    Resets the user's access token.
+    """
     boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
     if not os.path.isdir(boxley_dir):
         print "~/.boxley does not exist. Run boxley init to create it.\nExiting..."
@@ -306,6 +309,17 @@ def Add(paths_to_add, directory, groupname, root):
 
 
 def Delete(paths_to_delete, groupname):
+    """
+    Deletes a path(s) from a JSON file. If the path(s) is in a group, then the
+    group name must be specified. Only paths of one group can be removed at a
+    time.
+
+    OPTIONS
+
+    -g
+        Group name. If the path(s) belongs to a group, then the group name must
+        be specified. Only one group name can be specified.
+    """
     boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
 
     if groupname is not None:
@@ -334,7 +348,53 @@ def Delete(paths_to_delete, groupname):
         PATHSFILE_CONTENT.write(json.dumps(paths)+"\n")
 
 
+def List(groupnames, relative_to_home, verbose):
+    """
+    For each group, the absolute path of every file is printed.
+
+    OPTIONS
+
+    --home
+        Prints each file relative to home instead of relative to the root, if
+        possible. 
+
+    -v, --verbose
+        Prints the corresponding Dropbox path.
+    """
+    home = os.path.expanduser("~")
+    boxley_dir = os.path.join(home, ".boxley")
+    for groupname in groupnames:
+        paths_filename = os.path.join(boxley_dir, "group-%s.json" % groupname)
+        if not os.path.isfile(paths_filename):
+            print "Group \"%s\" does not exist. Skipping..." % groupname
+            continue
+
+        print "Files in '%s'" % groupname
+        with open(paths_filename) as PATHSFILE:
+            paths = json.loads(PATHSFILE.read())
+            if len(paths) == 0:
+                print "  No files found."
+                continue
+
+            if verbose:
+                for local_path in paths:
+                    db_path = paths[local_path]
+                    if relative_to_home:
+                        local_path = local_path.replace(home, "~")
+                    print "  %s --> %s" % (local_path, db_path)
+            else:
+                for local_path in paths:
+                    if relative_to_home:
+                        local_path = local_path.replace(home, "~")
+                    print "  %s" % local_path
+        print
+
+
 def Make_Group(groupnames):
+    """
+    Creates a group, i.e., creates a group JSON file in ~/.boxley. Multiple
+    groups can be created at once.
+    """
     boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
     for groupname in groupnames:
         groupfile_path = os.path.join(boxley_dir, "group-%s.json" % groupname)
@@ -646,6 +706,7 @@ def main():
     dup_vs_overwrite = parser.add_mutually_exclusive_group()
     dup_vs_overwrite.add_argument("--dup", action="store_true", help="If the file being pushed already exists on Dropbox, duplicate it instead of overwriting.")
     dup_vs_overwrite.add_argument("--ov",  action="store_true", help="If the file being pushed already exists on Dropbox, overwrite it.")
+    parser.add_argument("--home", action="store_true", help="List files relative to home.")
     parser.add_argument("--root", action="store_true", help="Ignore the Dropbox default directory and put the file in the root of Dropbox.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print more messages.")
     
@@ -663,6 +724,8 @@ def main():
         Add(args.names, args.d[0], args.g[0], args.root)
     elif cmd == "del":
         Delete(args.names, args.g[0])
+    elif cmd == "ls":
+        List(args.names, args.home, args.verbose)
     elif cmd == "mkgroup":
         Make_Group(args.names)
     elif cmd == "pull":

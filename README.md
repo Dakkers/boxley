@@ -144,11 +144,46 @@ boxley del -g mygroup file.txt
 ```
 
 
-### `mkgroup [groupname]`
-Creates a group file.
+### `ls [options] [groupnames]`
+List all files in each group given. The absolute path of every file is printed by default. If the `--home` flag is set, then the paths will be relative to the home directory instead of the root, if applicable. If the `-v` flag is set, then each file's corresponding Dropbox directory is printed too.
+
+```bash
+boxley add -g somegroup file.txt     # assume the path is /home/user/Documents/file.txt
+
+boxley ls somegroup
+
+Files in 'somegroup':
+  /home/user/Documents/file.txt
+```
+
+#### Options
+##### `--home`
+Prints each file path relative to home instead of the root.
+
+```bash
+boxley ls --home somegroup
+
+Files in 'somegroup':
+  ~/Documents/file.txt
+```
+
+##### `-v`
+Prints each file's corresponding Dropbox path.
+
+```bash
+boxley ls -v somegroup
+
+Files in 'somegroup':
+  /home/user/Documents/file.txt --> /Boxley/Documents/file.txt
+```
+
+
+### `mkgroup [groupnames]`
+Creates a group file. Multiple group files can be created at once.
 
 ```bash
 boxley mkgroup awesomestuff     # creates ~/.boxley/group-awesomestuff.json
+boxley mkgroup groupA groupB    # multiple groups!
 ```
 
 
