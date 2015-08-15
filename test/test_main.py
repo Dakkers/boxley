@@ -7,13 +7,21 @@ import main as boxley
 
 
 def write_to_files(paths, contents):
-    # edit the files
+    """
+    Given a list of file paths and a list of file contents, each string of
+    content is written to the corresponding file (i.e. the file at the same
+    index.
+    """
     for path, content in zip(paths, contents):
         with open(path, 'w') as FILE:
             FILE.write(content)
 
 
 def remove_files(files, boxley_dir):
+    """
+    Given a list of file paths (in this case, actual files on the computer and
+    not Boxley file paths), the files are removed if they exist.
+    """
     # removes a list of files from ~/.boxley, if they exist.
     for f in files:
         f_path = os.path.join(boxley_dir, f)
@@ -23,7 +31,12 @@ def remove_files(files, boxley_dir):
 
 def pull_helper(id1, id2, content1, content2, new_content1, new_content2, directory, groupname, 
                 root, cwd, cwd_without_home, client):
-    # files that are not in a group
+    """
+    Helper for the `Pull`, `Pull_Group` and `Pull_All` commands. Creates 2
+    example files with `content1` and `content2`, puts them on Dropbox
+    manually (using the API), adds the paths to a JSON file, and then replaces
+    their content with `new_content1` and `new_content2`.
+    """
     file1_path = os.path.join(cwd, "example-files/file_%d.txt" % id1)
     file2_path = os.path.join(cwd, "example-files/file_%d.txt" % id2)
     paths = [file1_path, file2_path]
@@ -45,7 +58,11 @@ def pull_helper(id1, id2, content1, content2, new_content1, new_content2, direct
 
 
 def push_helper_1(id1, id2, content1, content2, directory, groupname, root, cwd):
-    # files that are not in a group
+    """
+    One helper for the `Push`, `Push_Group` and `Push_All` commands. Creates
+    2 example files and writes `content1` and `content2` to them, and then adds
+    them to a JSON file.
+    """
     file1_path = os.path.join(cwd, "example-files/file_%d.txt" % id1)
     file2_path = os.path.join(cwd, "example-files/file_%d.txt" % id2)
     paths = [file1_path, file2_path]
@@ -68,9 +85,23 @@ def push_helper_2(conffile_path, boxley_dir, client):
             assert FILE.read() == content.read()
 
 
+def test_Setup_Tests():
+    """
+    This doesn't actually test anything, I just don't know how to create a
+    function to do a setup with pytest.
+    """
+    exfiles_path = os.path.join(os.getcwd(), "example-files")
+    if not os.path.isdir(exfiles_path):
+        os.mkdir(exfiles_path)
+
+    assert True
+
+
 def test_Make_Group_File():
-    boxley._Make_Group_File("example-files/group-test.json")
-    with open("example-files/group-test.json") as TESTFILE:
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    group_filepath = os.path.join(boxley_dir, "group-test.json")
+    boxley._Make_Group_File(group_filepath)
+    with open(group_filepath) as TESTFILE:
         content = TESTFILE.read()
 
     assert content == "{}\n"
