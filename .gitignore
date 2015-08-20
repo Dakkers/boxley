@@ -1,6 +1,5 @@
-# built and executable version
-*.exe
-*.build
+# pip thing
+dist
 
 # compiled python
 *.pyc

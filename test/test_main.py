@@ -21,6 +21,17 @@ def remove_files(files, boxley_dir):
             os.remove(f_path)
 
 
+def check_file_content(filepaths, contents):
+    """
+    Given a list of file paths and a list of file contents, each file is
+    opened and checked to see that its contents are the same as the conetnt in
+    the corresponding content element. Yep.
+    """
+    for filepath, content in zip(filepaths, contents):
+        with open(filepath) as FILE:
+            assert content == FILE.read()
+
+
 def pull_helper(id1, id2, content1, content2, new_content1, new_content2, directory, groupname, 
                 root, cwd, cwd_without_home, client):
     # files that are not in a group
@@ -194,17 +205,14 @@ def test_Pull():
     cwd = os.getcwd()
     cwd_without_home = cwd.replace(home, "")[1:]  # remove leading /
 
+    # individual files
     content1, content2 = "hello\nhello\ngoodbye!", "just-some-garbage"
     new_content1, new_content2 = "some random new garbage\n", "POOP: People Order Our Patties\n"
     paths = pull_helper(1, 2, content1, content2, new_content1, new_content2, None, None,
                         False, cwd, cwd_without_home, client)
 
     boxley.Pull(paths, None, False)
-
-    with open(paths[0]) as FILE1:
-        assert content1 == FILE1.read()
-    with open(paths[1]) as FILE2:
-        assert content2 == FILE2.read()
+    check_file_content(paths, [content1, content2])
 
     # files that are in a group
     content3, content4 = "I'M IN a group!!", "as\n\nam\n\ni\n"
@@ -213,11 +221,7 @@ def test_Pull():
                         False, cwd, cwd_without_home, client)
 
     boxley.Pull(paths, "pulltest", False)
-
-    with open(paths[0]) as FILE3:
-        assert content3 == FILE3.read()
-    with open(paths[1]) as FILE4:
-        assert content4 == FILE4.read()
+    check_file_content(paths, [content3, content4])
 
 
 def test_Pull_Group():
@@ -234,18 +238,14 @@ def test_Pull_Group():
     cwd = os.getcwd()
     cwd_without_home = cwd.replace(home, "")[1:]  # remove leading /
 
-    # files that are not in a group
+    # individual files
     content1, content2 = "group1file1", "groupunfiledeux"
     new_content1, new_content2 = "i dunno man\n", "out of ideas\n"
     paths = pull_helper(1, 2, content1, content2, new_content1, new_content2, None,
                         "pullgrouptest_A", False, cwd, cwd_without_home, client)
 
     boxley.Pull_Group(["pullgrouptest_A"], False)
-
-    with open(paths[0]) as FILE1:
-        assert content1 == FILE1.read()
-    with open(paths[1]) as FILE2:
-        assert content2 == FILE2.read()
+    check_file_content(paths, [content1, content2])
 
     # files that are in a group
     content3, content4 = "groupBfileAAA", "groupBfileBBB"
@@ -258,15 +258,8 @@ def test_Pull_Group():
                          "pullgrouptest_C", False, cwd, cwd_without_home, client)
 
     boxley.Pull_Group(["pullgrouptest_B", "pullgrouptest_C"], False)
-
-    with open(paths1[0]) as FILE3:
-        assert content3 == FILE3.read()
-    with open(paths1[1]) as FILE4:
-        assert content4 == FILE4.read()
-    with open(paths2[0]) as FILE5:
-        assert content5 == FILE5.read()
-    with open(paths2[1]) as FILE6:
-        assert content6 == FILE6.read()
+    check_file_content(paths1, [content3, content4])
+    check_file_content(paths2, [content5, content6])
 
 
 def test_Pull_All():
@@ -302,15 +295,8 @@ def test_Pull_All():
                          False, cwd, cwd_without_home, client)
 
     boxley.Pull_All(False)
-
-    with open(paths1[0]) as FILE1:
-        assert content1 == FILE1.read()
-    with open(paths1[1]) as FILE2:
-        assert content2 == FILE2.read()
-    with open(paths2[0]) as FILE3:
-        assert content3 == FILE3.read()
-    with open(paths2[1]) as FILE4:
-        assert content4 == FILE4.read()
+    check_file_content(paths1, [content1, content2])
+    check_file_content(paths2, [content3, content4])
 
 
 def test_Push():
@@ -414,3 +400,32 @@ def test_Push_All():
     push_helper_2("paths.json", boxley_dir, client)
     push_helper_2("group-pushalltestA.json", boxley_dir, client)
     push_helper_2("group-pushalltestB.json", boxley_dir, client)
+
+
+def test_Remove_Group():
+    """
+    `Remove_Group` is tested by manually creating group files and then
+    calling the function. Yep.
+
+    Tests:
+        - removing a single group
+        - removing multiple groups
+    """
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    group_filepathA = os.path.join(boxley_dir, "group-rmgrouptestA.json")
+    group_filepathB = os.path.join(boxley_dir, "group-rmgrouptestB.json")
+    group_filepathC = os.path.join(boxley_dir, "group-rmgrouptestC.json")
+    group_filepaths = [group_filepathA, group_filepathB, group_filepathC]
+
+    # write empty JSON files
+    write_to_files(group_filepaths, ["{}", "{}", "{}"])
+
+    # remove single group
+    boxley.Remove_Group(["grouptestA"], False)
+
+    # remove multiple groups
+    boxley.Remove_Group(["grouptestB", "grouptestC"], False)
+
+    # check to see that the files no longer exist
+    for group_filepath in group_filepaths:
+        assert os.path.isfile(group_filepath) == True

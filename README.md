@@ -299,6 +299,14 @@ Verbose output; prints a message for every file that is pushed.
 py.test is required for running Boxley's tests. Tests **must** be run inside the `test/` directory due to a relative import. The tests can be run by simply running `py.test` inside the directory.
 
 
+### `rmgroup [options] [groupnames(s)]`
+Removes all specified group files by group name. Skips groups that do not exist.
+
+#### Options
+##### `-v`
+Verbose output; prints a message for each group file to be removed.
+
+
 ## Contributing
 Boxley, like all of us, has a few issues. These issues are put here on GitHub. If you feel as if you can fix any of those issues, feel free to submit a pull request!
 

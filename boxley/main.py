@@ -692,6 +692,29 @@ def Push_All(duplicate_flag, overwrite_flag, verbose):
         print "All files pushed successfully."
 
 
+def Remove_Group(groupnames, verbose):
+    """
+    Removes all specified group files by group name. Skips groups that do not
+    exist.
+
+    OPTIONS
+
+    -v, --verbose
+        Verbose output; prints a message for each group file to be removed.
+    """
+    boxley_dir = os.path.join(os.path.expanduser("~"), ".boxley")
+    for groupname in groupnames:
+        filename = "group-%s.json" % groupname
+        group_filepath = os.path.join(boxley_dir, filename)
+        if not os.path.isfile(group_filepath):
+            print "Group '%s' does not exist. Skipping..."
+            continue
+
+        if verbose:
+            print "Removing group '%s'." % groupname
+        os.remove(group_filepath)
+
+
 def main():
 
     if len(sys.argv) == 1:
@@ -740,6 +763,8 @@ def main():
         Push_Group(args.names, args.dup, args.ov, args.verbose)
     elif cmd == "pushall":
         Push_All(args.dup, args.ov, args.verbose)
+    elif cmd == "rmgroup":
+        Remove_Group(args.names, args.verbose)
     elif cmd == "resettoken":
         Reset_Token()
     else:
